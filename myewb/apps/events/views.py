@@ -27,6 +27,8 @@ from datetime import datetime, date
 from siteutils import helpers
 from siteutils.shortcuts import get_object_or_none
 
+from champ2.models import ChampInfo
+
 def timebound(events, year=None, month=None, day=None, user=None):
     """
     Restrict events list to the specified time period.  If month or year are
@@ -138,12 +140,18 @@ def detail(request, id, slug):
     elif parent.__class__ == User:
         if parent == request.user:
             can_edit = True
-
+    
+    #afk edit
+    #TODO: confirm this
+    #see if can find an champ info for this event, if so pass to template
+    champ_info = ChampInfo.objects.get_by_event(event) or None
+    
     return render_to_response("events/event_detail.html",
                                { 'object': event,
                                 'member': member,
                                 'can_edit': can_edit,
-                                'can_send': can_send
+                                'can_send': can_send,
+                                'champ_info':champ_info,
                                },
                                context_instance=RequestContext(request),
                              )
@@ -232,6 +240,14 @@ def add(request, app_label, model_name, id):
             ev.object_id = obj.id
             ev.content_type = ct
             ev.save()
+
+            #AFK edits
+            #create and link ChampInfo object if one doesn't already exist 
+            if form.cleaned_data["champable"]:
+                print "CHAMPCHAMPCHAMPCHAMPCHAMPCHAMPCHAMPCHAMPCHAMPCHAMPCHAMPable"
+                if ChampInfo.objects.exists_by_event(event=ev) == False:
+                    ChampInfo.new(ev) #create a new ChampInfo object linked to an empty values owner
+                    print "|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
 
             return HttpResponseRedirect(ev.get_absolute_url())
     else:

@@ -7,6 +7,8 @@ from communities.models import Community
 from networks.models import Network
 from events.models import Event
 
+from champ2.models import ChampInfo
+
 class EventForm(forms.ModelForm):
 
     start = forms.DateTimeField(widget=forms.SplitDateTimeWidget)
@@ -17,6 +19,8 @@ class EventForm(forms.ModelForm):
     
     description = forms.CharField(widget=forms.Textarea(attrs={'class':'tinymce '}))
 
+    champable = forms.BooleanField(required=False) 
+
     def clean(self):
         # why does this get called before field validation that ensures they are filled in???
         if self.cleaned_data.get('end', None) and self.cleaned_data.get('start', None):
@@ -24,6 +28,16 @@ class EventForm(forms.ModelForm):
                 raise forms.ValidationError("End time must be after the start time.")
         
         return self.cleaned_data
+#
+#    #AFK
+#    def save(self, *args, **kwargs):
+#        #AFK edits
+#        #create and link ChampInfo object if one doesn't already exist 
+#        if self.cleaned_data["champable"]:
+#            if ChampInfo.objects.exists_by_event(event=self) == False:
+#                ChampInfo.new(self) #create a new ChampInfo object linked to an empty values owner
+#        
+#        super(EventForm, self).save(*args, **kwargs)
 
     class Meta:
         model = Event

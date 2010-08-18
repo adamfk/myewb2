@@ -229,6 +229,9 @@ INSTALLED_APPS = (
     'stats',
     'profile_query',
     'champ',
+    
+    'flexmodel',     #afk
+    'champ2',        #afk
 
     # our own third-party libs
     'contrib.django_evolution',
