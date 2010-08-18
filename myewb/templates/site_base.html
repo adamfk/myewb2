@@ -114,8 +114,11 @@ $(document).ready(function(){
 		Signed in as <a class="username" href="{% url profile_detail user %}"><strong>{{ user.visible_name }}</strong></a>.
 		<br/>
 		<div id="inbox_count">
-			<a href="{% url messages_inbox %}">{{ messages_inbox_count }} unread message{% ifnotequal messages_inbox_count 1 %}s{% endifnotequal %}</a>
+			<a href="{% url messages_inbox %}">{{ messages_inbox_count }} unread myEWB message{% ifnotequal messages_inbox_count 1 %}s{% endifnotequal %}</a>
 		</div>
+		{% if user.google_username %}
+			This account is linked to <a href="http://mail.ewb.ca" target="_new">{{ user.google_username }}@ewb.ca</a><br/>
+		{% endif %}
 		
 		<a class="signout" href="{% url acct_logout %}">{% trans "sign out" %}</a>
     {% else %}
@@ -142,7 +145,7 @@ $(document).ready(function(){
         <li><a id="tab_networks" class="yellow" href="{% url networks_index %}">{% trans "Chapters" %}</a></li>
         <li><a id="tab_communities" class="orange" href="{% url communities_index %}">{% trans "Communities" %}</a></li>
         <li><a id="tab_events" class="red" href="{% url events_all %}">{% trans "Events" %}</a></li>
-        <li><a id="tab_volunteering" class="purple" href="{% url volunteering_index %}">{% trans "Volunteering" %}</a></li>
+        <li><a id="tab_volunteering" class="purple" href="{% url applications %}">{% trans "Volunteering" %}</a></li>
     {% endspaceless %}</ul>
 {% endblock %}
 

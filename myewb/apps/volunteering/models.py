@@ -4,54 +4,229 @@ from pinax.apps.profiles.models import Profile
 from profiles.models import MemberProfile
 from siteutils.countries import CountryField, COUNTRY_MAP
 from siteutils.models import ServiceProvider
+from mailer import send_mail
 from datetime import datetime
 
+### APPLICATION SESSIONS
 class Session(models.Model):
   name = models.CharField(max_length=200)
-  en_instructions = models.TextField(null=True)
-  fr_instructions = models.TextField(null=True)
-  close_email = models.TextField(null=True)
-  rejection_email = models.TextField(null=True)
-  completed_application = models.TextField(null=True)
+  active = models.BooleanField(default=False, editable=False)
   open_date = models.DateField(null=True)
-  close_date = models.DateField(null=True)
   due_date = models.DateField(null=True)
-  email_sent = models.NullBooleanField(null=True)
+  close_date = models.DateField(null=True)
+  en_instructions = models.TextField("English instructions",
+                                     null=True)
+  fr_instructions = models.TextField("French instructions",
+                                     null=True)
+  #completed_application = models.TextField("Thank you message",
+  #                                         null=True)
+  close_email_subject = models.CharField("Session closing email subject",
+                                 null=True, max_length=255)
+  close_email_from = models.CharField("Session closing email from", max_length=255,
+                                 default="Engineers Without Borders Canada <info@ewb.ca>")
+  close_email = models.TextField("Session closing email",
+                                 null=True)
+  rejection_email_subject = models.CharField("Rejected application email subject",
+                                 null=True, max_length=255)
+  rejection_email_from = models.CharField("Rejected application email from", max_length=255,
+                                 default="Engineers Without Borders Canada <info@ewb.ca>")
+  rejection_email = models.TextField("Rejected application email",
+                                     null=True)
+  
+  def application_questions(self):
+      return ApplicationQuestion.objects.filter(session=self)
+  def interview_questions(self):
+      return InterviewQuestion.objects.filter(session=self)
   
   def __unicode__(self):
     return self.name
-  
-class Application(models.Model):
-  en_writing = models.PositiveSmallIntegerField(_("English writing (1-10)"), null=True)
-  en_reading = models.PositiveSmallIntegerField(null=True)
-  en_speaking = models.PositiveSmallIntegerField(null=True)
+    
+  def complete_applications(self):
+    return self.application_set.filter(complete=True)
+    
+  def draft_applications(self):
+    return self.application_set.filter(complete=False)
 
-  fr_writing = models.PositiveSmallIntegerField(null=True)
-  fr_reading = models.PositiveSmallIntegerField(null=True)
-  fr_speaking = models.PositiveSmallIntegerField(null=True)
-  
-  schooling = models.TextField()
-  resume_text = models.TextField()
-  resume_attachment = models.FileField(upload_to="XXXX") #fixme
-  references = models.TextField()
-  gpa = models.PositiveIntegerField(null=True)
-  
-  profile = models.ForeignKey(MemberProfile)
-  session = models.ForeignKey(Session)
-  
-  def __unicode__(self):
-    return "%s: %s" % (self.profile.name, self.session.name)
+  def open(self):
+    self.active = True
+    self.save()
+    
+  def close(self):
+    self.active = False
+    self.save()
+    
+    sender = self.close_email_from
+    emails = []
+    for app in self.complete_applications():
+        emails.append(app.profile.user2.email)
+        eval = app.evaluation
+        eval.last_email = datetime.now()
+        eval.save()
+    
+    send_mail(subject=self.close_email_subject,
+              txtMessage=None,
+              htmlMessage=self.close_email,
+              fromemail=sender,
+              recipients=emails,
+              use_template=False)
+    
+  class Meta:
+    ordering = ('-active', '-close_date', '-open_date')
 
 class Question(models.Model):
   question = models.TextField()
   question_order = models.PositiveSmallIntegerField()
   session = models.ForeignKey("Session")
+  
+  def strid(self):
+      return str(self.id)
+  
+  class Meta:
+    ordering = ('question_order', 'session')
 
+class ApplicationQuestion(Question):
+  def clone(self):  
+      return ApplicationQuestion(question=self.question,
+                                 question_order=self.question_order,
+                                 session=self.session)
+    
+  class Meta:
+    ordering = ('question_order', 'session')
+
+class InterviewQuestion(Question):
+  def clone(self):  
+      return InterviewQuestion(question=self.question,
+                               question_order=self.question_order,
+                               session=self.session)
+    
+  class Meta:
+    ordering = ('question_order', 'session')
+
+class EvaluationCriterion(models.Model):
+  criteria = models.TextField()
+  criteria_order = models.PositiveSmallIntegerField()
+  column_header = models.CharField(max_length=100)
+  session = models.ForeignKey("Session")
+  
+  class Meta:
+    ordering = ('criteria_order', 'session')
+
+class CaseStudy(models.Model):
+  name = models.CharField(blank=True, max_length=100, verbose_name='Case Study')
+  html = models.TextField(blank=True)
+  
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    verbose_name_plural = "Case Studies"
+    ordering = ["name"]  
+  
+### APPLICATIONS
+class Application(models.Model):
+  en_writing = models.PositiveSmallIntegerField(_("English writing"), null=True, blank=True)
+  en_reading = models.PositiveSmallIntegerField(null=True, blank=True)
+  en_speaking = models.PositiveSmallIntegerField(null=True, blank=True)
+
+  fr_writing = models.PositiveSmallIntegerField(null=True, blank=True)
+  fr_reading = models.PositiveSmallIntegerField(null=True, blank=True)
+  fr_speaking = models.PositiveSmallIntegerField(null=True, blank=True)
+  
+  schooling = models.TextField(blank=True, null=True)
+  resume_text = models.TextField(blank=True, null=True)
+  resume_attachment = models.FileField(upload_to="XXXX") #fixme
+  references = models.TextField(blank=True, null=True)
+  gpa = models.PositiveIntegerField(null=True, blank=True)
+  
+  profile = models.ForeignKey(MemberProfile)
+  session = models.ForeignKey(Session)
+  complete = models.BooleanField(default=False)
+
+  APPLICATION_STATUS = (
+      ('d', _('Draft')),
+      ('s', _('Submitted')),
+      ('r', _('Reviewed')),
+      ('i', _('Selected for first interview')),
+      ('n', _('Selected for second interview')),
+      ('p', _('Decision pending')),
+      ('a', _('Accepted - hired')),
+      ('u', _('Unsuccessful')),
+  )
+  status = models.CharField(max_length=1, choices=APPLICATION_STATUS, default='d')
+  
+  created = models.DateTimeField(auto_now_add=True)
+  updated = models.DateTimeField(auto_now=True)
+  
+  def __unicode__(self):
+    return "%s: %s" % (self.profile.name, self.session.name)
+    
+  def get_answers(self):
+    answers = self.answer_set.all()
+    answer_list = {} 
+    for a in answers:
+        answer_list[a.question.id] = a.answer
+    return answer_list
+    
 class Answer(models.Model):
   answer = models.TextField()
   application = models.ForeignKey("Application")
   question = models.ForeignKey("Question")
 
+
+### EVALUATIONS
+class EvaluationResponse(models.Model):
+  #response = models.PositiveIntegerField(null=True)
+  response = models.CharField(max_length=255, null=True)
+  evaluation = models.ForeignKey("Evaluation")
+  evaluation_criterion = models.ForeignKey("EvaluationCriterion")
+
+class Evaluation(models.Model):
+  INTERVIEW_CHOICES = (
+      ('Y', _('Yes')),
+      ('N', _('No')),
+      ('N/A', _('Not needed (hire)')),
+  )
+
+  application = models.OneToOneField("Application")
+  last_email = models.DateTimeField(blank=True, null=True)
+  
+  def total_score(self):
+    score = 0
+    for e in self.evaluationresponse_set.all():
+        try:
+            if int(e.response):
+                score = score + int(e.response)
+        except:
+            pass
+
+    return score
+    
+  def scores(self):
+    scores = {}
+    for e in self.evaluationresponse_set.all():
+        scores[e.evaluation_criterion.id] = e.response
+    return scores
+    
+  def comments(self):
+    comments = {}
+    for c in self.evaluationcomment_set.all():
+        comments[c.key] = c.comment
+    return comments
+
+  def criteria(self):
+    criteria = {}
+    for c in self.evaluationresponse_set.all():
+        if c.response:
+            criteria[c.evaluation_criterion.id] = c.response
+    return criteria
+    
+class EvaluationComment(models.Model):
+  evaluation = models.ForeignKey("Evaluation")
+  key = models.TextField()
+  comment = models.TextField()
+  
+
+### PLACEMENT TRACKING
 class Sector(models.Model):
   name = models.CharField(blank=True, max_length=100)
   abbreviation = models.CharField(blank=True, max_length=30)
@@ -59,25 +234,35 @@ class Sector(models.Model):
   def __unicode__(self):
     return self.name
 
-
 class Placement(models.Model):
+  PLACEMENT_TYPES = (('jf', "Junior Fellow"),
+                     ('lt', "Long-term"))
+  
   description = models.TextField()
-  longterm = models.BooleanField()
-  deleted = models.BooleanField(default=False)
+  profile = models.ForeignKey(MemberProfile, related_name='placement')
+  type = models.CharField(max_length=2, choices=PLACEMENT_TYPES, default='lt')
+  sector = models.ForeignKey(Sector, null=True)
+  
   start_date = models.DateField(null=True)
   end_date = models.DateField(null=True)
-  country = CountryField(ewb='placements')
   town = models.CharField(max_length=100)
-  flight_request_made = models.BooleanField(default=True)
+  country = CountryField(ewb='placements')
 
-  sector = models.ForeignKey(Sector, null=True)
-  coach = models.ForeignKey(MemberProfile, related_name='coach', null=True)
-  profile = models.ForeignKey(MemberProfile, related_name='placement')
+  coach = models.ForeignKey(MemberProfile, related_name='placement_coach', blank=True, null=True)
+
+  flight_request_made = models.BooleanField(default=True)
+  deleted = models.BooleanField(default=False)
   
   def country_name(self):
     if self.country and COUNTRY_MAP.has_key(self.country):
       return COUNTRY_MAP[self.country]
+    return None
 
+  def type_name(self):
+    if self.type:
+        for x,y in self.PLACEMENT_TYPES:
+            if self.type == x:
+                return y
     return None
 
   def local_phone_numbers(self):
@@ -121,48 +306,8 @@ class Stipend(models.Model):
   def adjusted_payment(self):
     return (float(self.daily_rate) * 90 + float(self.adjustment))
 
-class EvaluationCriterion(models.Model):
-  criteria = models.TextField()
-  column_header = models.CharField(max_length=100)
-  session = models.ForeignKey("Session")
-
-class EvaluationResponse(models.Model):
-  response = models.PositiveIntegerField()
-  evaluation = models.ForeignKey("Evaluation")
-  evaluation_criterion = models.ForeignKey("EvaluationCriterion")
-
-class Evaluation(models.Model):
-  INTERVIEW_CHOICES = (
-      ('Y', _('Yes')),
-      ('N', _('No')),
-      ('N/A', _('Not needed (hire)')),
-  )
-
-  application = models.ForeignKey("Application")
-  rank = models.PositiveSmallIntegerField()
-  
-  # yes/no 
-  interview1 = models.BooleanField()
-  interview2 = models.CharField(_('interview'), max_length=10, choices=INTERVIEW_CHOICES, null=True, blank=True)
-
-  rejection_sent = models.BooleanField()
-  offer_accepted = models.BooleanField(default=True)
-  
-  interview1_notes = models.TextField(blank=True)
-  interview2_notes = models.TextField(blank=True)
-  
-  ewb_experience = models.TextField(blank=True)
-
-
-  application_score = models.PositiveSmallIntegerField()
-  # interview_score = sum(interview_score_leadership, interview_score_problem_solving, _africa_ready, _interpersonal, _attitudes_personal)
-  # criterion table??
-  
-  
-
-
 class InsuranceInstance(models.Model):
-  placement = models.ForeignKey(Placement)
+  placement = models.ForeignKey(Placement, related_name="insurance")
 
   insurance_company = models.ForeignKey(ServiceProvider)
   policy_number = models.CharField(blank=True, max_length=100)
@@ -188,7 +333,7 @@ class TravelSegment(models.Model):
   )
 
   profile = models.ForeignKey(MemberProfile, related_name='travel_segment')
-  placement = models.ForeignKey(Placement)
+  placement = models.ForeignKey(Placement, related_name='travel')
 
   start_date_time = models.DateTimeField(blank=True)
   end_date_time = models.DateTimeField(blank=True)
@@ -205,17 +350,6 @@ class TravelSegment(models.Model):
   
   def __unicode__(self):
     return "%s (%s)" % (self.profile.name, self.booking_code)
-
-class CaseStudy(models.Model):
-  name = models.CharField(blank=True, max_length=100, verbose_name='Case Study')
-  html = models.TextField(blank=True)
-  
-  def __unicode__(self):
-    return self.name
-
-  class Meta:
-    verbose_name_plural = "Case Studies"
-    ordering = ["name"]
 
 class SendingGroup(models.Model):
   group_type = models.CharField(blank=True, max_length=100)
