@@ -1,0 +1,65 @@
+{% extends 'events/base.html' %}
+{% load events_tags %}
+{% load whiteboard_tags %}
+
+{% block body %}
+
+<style type="text/css"> 
+<!-- 
+
+
+--> 
+</style>
+
+
+<div type="text" id="datepicker"></div>
+
+<div id="event-details" style="float:left; margin-right:10px;">   
+  <form action="." method="post">
+      <h1>Network's Goals</h1>
+      {% for form in formgroup %}
+         <h2>{{ form.groupname }} </h2>
+             
+         {{ form.subform.as_p }}
+       
+        {% comment %}       
+         {% for field in form.subform.fields %}
+            {{ field }} <br />      
+         {% endfor %}
+         
+         {{ form.subform.8 }}
+        {% endcomment %}
+      {% endfor %}
+  		<input type="submit" value="Save changes" />
+  </form>
+</div>
+            
+    
+<div id="event-details" style="float:left; margin-right:10px;">   
+    <h1>Sum of PLANs</h1>
+    {% for form in formgroup %}
+       <h2>{{ form.groupname }} </h2>
+         {% for key, value in form.plan.fields.items %}
+            {% if value.label %}
+                <p>{{ value.label }}: {{ value.initial }} </p>
+            {% endif %}
+         {% endfor %}
+    {% endfor %}    
+</div>
+    <h1>Sum of Actual EVALs</h1>
+    {% for form in formgroup %}
+       <h2>{{ form.groupname }} </h2>
+         {% for key, value in form.eval.fields.items %}
+            {% if value.label %}
+                <p>{{ value.label }}: {{ value.initial }} </p>
+            {% endif %}
+         {% endfor %} 
+    {% endfor %}    
+        
+    
+
+
+
+
+{% endblock %}
+

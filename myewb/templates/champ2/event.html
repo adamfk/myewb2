@@ -1,0 +1,36 @@
+{% extends 'events/base.html' %}
+{% load events_tags %}
+{% load whiteboard_tags %}
+
+{% block body %}
+
+<style type="text/css"> 
+<!-- 
+
+
+--> 
+</style>
+
+
+<div type="text" id="datepicker"></div>
+
+<div id="event-details">
+    
+ <form action="." method="post">
+    {% for form in formgroup %}
+       <h1>{{ form.groupname }} {{ form.checkbox }} </h1>
+           
+       {{ form.subform.as_p }}
+       <br />
+       
+    {% endfor %}
+    
+		<input type="submit" value="Save changes" />
+	</form>
+	
+</div>
+
+
+
+{% endblock %}
+

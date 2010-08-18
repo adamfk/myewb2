@@ -1,0 +1,28 @@
+{% extends "admin/change_form.html" %}
+
+{% block form_top %}
+  <p>Insert meaningful help message here...</p>
+{% endblock %}
+
+{% block after_related_objects %}
+
+<h3>Associated ChampInfo object</h3>
+
+<a href="../../../champ2/champinfo/{{original.champinfo.id}}/">ChampInfo [id={{original.champinfo.id}}, event={{original.champinfo.event.title}}, base_group={{original.champinfo.event.parent_group}} ]</a> <br />
+  
+
+<h3>Associated AnyValue objects</h3>
+<table border="1">
+{% for av in original.anyvalue_set.all %}
+  <tr>
+    <td><a href="../../anyvalue/{{av.id}}/">Link</a></td>
+    <td>AnyValue id={{av.id}}</td>
+    <td>{{ av.any_field.field_group.name }}</td>
+    <td>anyfield = {{av.any_field.name}}</td>
+    <td>value={{av.get_value}}</td>
+  </tr>
+{% endfor %}  
+</table>
+
+
+{% endblock %}
