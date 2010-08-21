@@ -11,11 +11,13 @@ import datetime
 #
 from events.models import Event
 from networks.models import Network
+from base_groups.decorators import group_admin_required   #this is a test if exec. Note: must be used like"@group_admin_required()" don't forget the "()"
+from django.contrib.auth.decorators import login_required 
 
 #import your needed models here
 from flexmodel.models import *
 from champ2.models import *
-from champ2.forms import getProgramAreasForm, ProgramAreaCheckBoxForm
+from champ2.forms import getProgramAreasForm, ProgramAreaCheckBoxForm, MatriceProgramAreaForm
 
 
 
@@ -197,7 +199,7 @@ def eval(request, event_id):
 #======================================================
 #TEMPLATE to copy and paste from
 #======================================================
-def network(request, network_slug):
+def base_group(request, network_slug):
     my_template_data = dict()
     
     #get base group
@@ -218,10 +220,12 @@ def network(request, network_slug):
 #======================================================
 #
 #======================================================
-def network_goals(request, network_slug):
+@group_admin_required()
+#@login_required
+def base_group_goals(request, group_slug):
     my_template_data = dict()
     
-    network = Network.objects.get(slug=network_slug)
+    network = BaseGroup.objects.get(slug=group_slug)
     
     #get current matching date range
     date_range = DateRange.objects.filter(start__lte=datetime.date.today(), end__gte=datetime.date.today())[0] #TODO: can we guarantee non overlapping? 
@@ -262,9 +266,6 @@ def network_goals(request, network_slug):
     
     my_template_data["formgroup"] = formgroup.forms
     
-    print "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf"
-    print repr(form.plan.fields['owner'].initial)
-    print "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
     #validate fields
     if request.POST:#formgroup.is_valid(): # check if fields validated
 
@@ -291,10 +292,47 @@ def network_goals(request, network_slug):
 #======================================================
 #
 #======================================================
-def network_goals_date(request, network_slug, date_range_slug):
+def base_group_goals_date(request, group_slug, date_range_slug):
     my_template_data = dict()
 
     pass
+
+
+#======================================================
+#
+#======================================================
+@group_admin_required()
+def base_group_metrics(request, group_slug, date_range_slug):
+    my_template_data = dict()
+    
+    matrice_date = MatriceDate.objects.get(slug=date_range_slug)
+    base_group = BaseGroup.objects.get(slug=group_slug)
+    #TODO: differentiate between goals and forms for value sets
+    
+    matrice_value_set = None
+    try:
+        matrice_value_set = MatriceValueSet.objects.get(base_group=base_group, matrice_date=matrice_date)
+    except(ObjectDoesNotExist):
+        matrice_value_set = MatriceValueSet()
+        matrice_value_set.base_group = BaseGroup.objects.get(slug=group_slug)
+        matrice_value_set.matrice_date = matrice_date
+        matrice_value_set.type = MatriceValueSet.MEASUREMENT_TYPE
+        matrice_value_set.save()
+
+    matrice_program_area = MatriceProgramArea.objects.get(id=1) #TODO: fixed value hack!
+    
+    form = MatriceProgramAreaForm(request.POST or None, matrice_value_set=matrice_value_set, matrice_program_area=matrice_program_area)
+    form.base_group_name = base_group.name
+    form.matrice_date = matrice_date
+    form.matrice_program_area = matrice_program_area
+
+    if request.POST and form.is_valid():
+        form.save()
+        
+    my_template_data["form"] = form        
+
+
+    return render_to_response('champ2/matrices.html', my_template_data, context_instance=RequestContext(request))
 
 
 

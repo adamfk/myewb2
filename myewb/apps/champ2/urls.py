@@ -7,9 +7,11 @@ urlpatterns = patterns('',
     url(r'^plan/(?P<event_id>\d+)/$', view='champ2.views.plan', name='champ2_plan'),
     url(r'^eval/(?P<event_id>\d+)/$', view='champ2.views.eval', name='champ2_eval'),
     
-    url(r'^(?P<network_slug>[a-zA-Z]+)/$', view='champ2.views.network', name='champ2_network'),
-    url(r'^(?P<network_slug>[a-zA-Z]+)/goals/$', view='champ2.views.network_goals', name='champ2_network_goals'),
-    url(r'^(?P<network_slug>[a-zA-Z]+)/goals/(?P<date_range_slug>[a-zA-Z0-9_-]+)$', view='champ2.views.network_goals_date', name='champ2_network_goals_date'),
+    url(r'^(?P<group_slug>[a-zA-Z]+)/$', view='champ2.views.base_group', name='champ2_base_group'),
+    url(r'^(?P<group_slug>[a-zA-Z]+)/goals/$', view='champ2.views.base_group_goals', name='champ2_base_group_goals'),
+    url(r'^(?P<group_slug>[a-zA-Z]+)/goals/(?P<date_range_slug>[a-zA-Z0-9_-]+)$', view='champ2.views.base_group_goals_date', name='champ2_base_group_goals_date'),
+    
+    url(r'^matrices/(?P<group_slug>[a-zA-Z]+)/(?P<date_range_slug>[a-zA-Z0-9_-]+)/$', view='champ2.views.base_group_metrics', name='champ2_base_group_goals_date'),
     
     
 )

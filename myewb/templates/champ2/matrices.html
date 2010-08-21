@@ -1,0 +1,81 @@
+{% extends 'events/base.html' %}
+{% load events_tags %}
+{% load whiteboard_tags %}
+
+{% block body %}
+
+<style type="text/css"> 
+<!-- 
+
+.matrice_table
+{
+  border-collapse: separate;
+}
+
+.matrice_table td
+{
+  border-bottom:1px solid black;
+  padding:5px;
+  vertical-align:top;
+}
+
+.matrice_button:hover
+{
+  background-color:rgb(153,204,255);
+  cursor:pointer;
+}
+
+.matrice_table input
+{
+  width:2.5em;
+}
+
+--> 
+</style>
+
+
+
+<script type="text/javascript"> 
+<!-- 
+
+function table(value_to_set, id)
+{
+  $('#id_' + id).val(value_to_set);
+  $('#id_' + id).focus();
+}
+
+
+--> 
+</script>
+
+
+<div type="text" id="datepicker"></div>
+
+<div id="event-details">
+    
+ <form action="." method="post">
+  
+  <h1>{{ form.matrice_program_area.title }}</h1>
+  
+  <table class="matrice_table" >
+  {% for boundfield in form %}
+    <tr>  
+      <td>{{ boundfield.label_tag }} {{ boundfield.errors }}</td>
+      <td>{{ boundfield }}</td>
+      <td class="matrice_td_1 matrice_button" onclick="table(1, '{{ boundfield.html_name}} ')">  {{ boundfield.field.help1 }}</td>
+      <td class="matrice_td_2 matrice_button" onclick="table(2, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help2 }}</td>
+      <td class="matrice_td_3 matrice_button" onclick="table(3, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help3 }}</td>
+      <td class="matrice_td_4 matrice_button" onclick="table(4, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help4 }}</td>
+    </tr>
+  {% endfor %}
+  </table>
+      
+		<input type="submit" value="Save changes" />
+	</form>
+	
+</div>
+
+
+
+{% endblock %}
+

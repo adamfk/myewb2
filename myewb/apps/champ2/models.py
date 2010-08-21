@@ -99,3 +99,105 @@ class Goal(models.Model):
     def __unicode__(self):
         return "Goal " + str(self.base_group) + " " + str(self.date_range)
 
+
+#=========================================================================================
+#------MATRICE DEFINITION MODELS----------------------------------------------------
+#=========================================================================================
+
+#....................................................
+class MatriceGroup(models.Model):
+    order = models.IntegerField()
+    slug = models.SlugField()
+    title = models.CharField(max_length=40)
+
+    def __unicode__(self):
+        return str(self.order) + ". " + self.title
+
+#....................................................
+class MatriceProgramArea(models.Model):
+    matrice_group = models.ForeignKey(MatriceGroup, related_name="program_areas")
+    order = models.IntegerField()
+    slug = models.SlugField()
+    title = models.CharField(max_length=40)
+
+    def __unicode__(self):
+        return self.matrice_group.__unicode__()+ " -> " + str(self.order) + ". " + self.title
+#....................................................
+class MatriceMetric(models.Model):
+    matrice_program_area = models.ForeignKey(MatriceProgramArea, related_name="metrics")
+    order = models.IntegerField()
+    title = models.CharField(max_length=40)
+    
+    help1 = models.TextField(help_text="New lines will be replaced by single spaces so feel free to copy and paste from a pdf into here.")
+    help2 = models.TextField(help_text="New lines will be replaced by single spaces so feel free to copy and paste from a pdf into here.")
+    help3 = models.TextField(help_text="New lines will be replaced by single spaces so feel free to copy and paste from a pdf into here.")
+    help4 = models.TextField(help_text="New lines will be replaced by single spaces so feel free to copy and paste from a pdf into here.")
+    
+#    help1 = models.CharField(max_length=500)
+#    help2 = models.CharField(max_length=500)
+#    help3 = models.CharField(max_length=500)
+#    help4 = models.CharField(max_length=500)
+
+    def save(self, *args, **kwargs):
+        self.help1 = self.formatHelpInput(self.help1)
+        self.help2 = self.formatHelpInput(self.help2)
+        self.help3 = self.formatHelpInput(self.help3)
+        self.help4 = self.formatHelpInput(self.help4)
+        super(MatriceMetric, self).save(*args, **kwargs)
+
+    @staticmethod
+    def formatHelpInput(text):
+        text = text.replace("\r\n", " ")
+        text = text.replace("\n", " ")
+        text = text.replace("\r", " ")
+        return text        
+
+    def __unicode__(self):
+        return self.matrice_program_area.__unicode__()+ " -> "  + str(self.order) + ". " + self.title
+#....................................................
+class MatriceDate(models.Model):
+    title = models.CharField(max_length=20)
+    slug = models.SlugField()
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    def __unicode__(self):
+        return self.title + " " +  str(self.start_date) + "->" + str(self.end_date) 
+#=========================================================================================
+#----------MATRICE VALUE MODELS-----------------------------------------------------------
+#=========================================================================================
+
+#....................................................
+#can be either a goal or a measurement
+class MatriceValueSet(models.Model):
+    
+    MEASUREMENT_TYPE = 0
+    GOAL_TYPE = 1
+    
+    TYPE_CHOICES = (
+                    (MEASUREMENT_TYPE, "Measurement"),
+                    (GOAL_TYPE, "Goal"),
+                    )
+    
+    type = models.IntegerField(choices=TYPE_CHOICES)
+    base_group = models.ForeignKey(BaseGroup)
+    matrice_date = models.ForeignKey(MatriceDate)
+
+    def is_goal(self):
+        return self.type == self.GOAL_TYPE
+    
+    def is_measurement(self):
+        return self.type == self.MEASUREMENT_TYPE
+
+    def __unicode__(self):
+        return self.base_group.title + " " + self.matrice_date.__unicode__() + " is_goal:" + str(self.is_goal())
+
+#....................................................
+class MatriceMetricValue(models.Model):
+    matrice_metric = models.ForeignKey(MatriceMetric, related_name="values")
+    matrice_value_set = models.ForeignKey(MatriceValueSet, related_name="values")
+    value = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True) #value 1 to 4 allowing decimal values
+    pass
+
+
+    

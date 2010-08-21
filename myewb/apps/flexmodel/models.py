@@ -137,9 +137,7 @@ class FieldGroupForm(forms.Form):
         for i, field in enumerate(fields):
             self.fields[self.get_post_name(field)] = self.field_2_formfield(field)
             self.fields[self.get_post_name(field)].required = field.required
-
-            print repr(field)
-                      
+                 
             #=========================================================
             if field.type == AnyField.SINGLE_CHOICE_TYPE:
                 #try to find initial value for it
