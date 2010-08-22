@@ -1,0 +1,17 @@
+{% if not pa.form.is_valid %}ERROR!{% endif %}
+
+  
+              <table class="matrice_table" >
+              {% for boundfield in pa.form %}
+                <tr>  
+                  <td>{{ boundfield.label_tag }} {{ boundfield.errors }}</td>
+                  <td>{{ boundfield }}</td>
+                  <td class="matrice_td_1 matrice_button" onclick="table(1, '{{ boundfield.html_name}} ')">  {{ boundfield.field.help1 }}</td>
+                  <td class="matrice_td_2 matrice_button" onclick="table(2, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help2 }}</td>
+                  <td class="matrice_td_3 matrice_button" onclick="table(3, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help3 }}</td>
+                  <td class="matrice_td_4 matrice_button" onclick="table(4, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help4 }}</td>
+                </tr>
+              {% endfor %}
+              </table>
+              <br />
+          		<input type="submit" value="Save and continue to next" onmousedown="submit_pa({{ pa.id }});"/>

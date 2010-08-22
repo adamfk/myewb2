@@ -1,0 +1,209 @@
+{% extends 'events/base.html' %}
+{% load events_tags %}
+{% load whiteboard_tags %}
+
+{% block body %}
+
+<style type="text/css"> 
+<!-- 
+
+.matrice_table
+{
+  border-collapse: separate;
+}
+
+.matrice_table td
+{
+  border-bottom:1px solid grey;
+  padding:5px;
+  vertical-align:top;
+}
+
+.matrice_button:hover
+{
+  background-color:rgb(153,204,255);
+  cursor:pointer;
+}
+
+table.matrice_table input[type="text"]
+{
+  width:3em;
+}
+
+--> 
+</style>
+
+
+
+<script type="text/javascript"> 
+<!-- 
+
+var pageChanged = false;
+
+function setChanged()
+{
+  pageChanged = true;
+}
+
+function table(value_to_set, id)
+{
+  
+  if( $('#id_' + id).val() != value_to_set)
+    setChanged();
+  
+  $('#id_' + id).val(value_to_set);
+  $('#id_' + id).focus();
+}
+
+
+function box_toggle(div_dom)
+{
+    $(div_dom).next().slideToggle("slow");
+    $(div_dom).toggleClass('hidebox');
+}
+
+function box_show(div_dom)
+{
+    $(div_dom).next().slideDown("slow");
+    $(div_dom).removeClass('hidebox');
+}
+
+function box_hide(div_dom)
+{
+    $(div_dom).next().slideUp("slow");
+    $(div_dom).removeClass('hidebox'); //just incase there, but probably not needed
+    $(div_dom).addClass('hidebox');
+}
+
+function submit_pa(id)
+{
+  var post_data = {}  //special js. treat same as python dictionary.
+  
+  //find all elements of the form
+  myform = $("#matrice_form_" + id);  //jQuery object
+  myform_dom = myform.get(0);         //javascript DOM object
+  
+  inputs = $("input:text", myform_dom).get() //the text inputs of the form (does not include submit button)
+  len = inputs.length
+  
+  //get post data
+  for(i=0;i<len;i++)
+  {
+    post_data[inputs[i].name] = inputs[i].value; //note this is like post_data["some_name"] = 4
+  }
+ 
+
+  //now find the parent div with class "toolbarheader" and close it... then open the next one
+  parent = myform.parent(".toolbarcontent");
+  header = parent.prev()
+
+  button = $("input:submit", myform[0])[0]
+  button.value = "loading..."
+  button.disabled = true
+
+  //send data using ajax to champ2/ajax/matrices/<base group slug>/<data slug>/<matrice program area id>/
+  loadinto = $("#matrice_form_container_" + id)
+  $.post("http://127.0.0.1:8000/champ2/ajax/matrices/umanitoba/2010f/" + id + "/", post_data,   
+    function(response, status, xhr) 
+    { 
+      if( status == "error")
+        alert("ERROR! could not save data using ajax... sorry");
+      else
+      {
+        $(loadinto).html(response);
+        
+        if(response.trim().substr(0,3) != "ERR")
+        {
+          box_hide(header)
+          header.show();
+  
+          //find next to show
+          allheaders = $(".toolbarheader")//find all toobarcontent div
+          next_header = allheaders.get( allheaders.index(header) + 1);  
+          box_show( next_header );            
+        }
+        else
+        {
+          alert("There was an error in the form you tried to save. Please fix it.");
+        }
+      }
+    } );
+
+}
+
+
+$(document).ready(function()
+{ 
+  $(".matrice_input").change( function()
+    {
+      //alert("jqeury changed!")
+      setChanged();
+    }
+  );
+
+  $(".matrice_form").bind("submit", function() { return false; })
+  all_boxes = $(".toolbarheader").get()
+  
+  for(i=1;i<all_boxes.length;i++)
+  {
+    box_hide(all_boxes[i]);
+  }
+  
+
+});
+
+
+--> 
+</script>
+
+
+<div type="text" id="datepicker"></div>
+
+<div id="event-details">
+
+   
+   
+   {% for group in matrice_all.groups %}
+      <h1>{{ group.name }}</h1>
+      
+      {% for pa in group.program_areas %}
+      <div class="toolbarheader bkgd" >{{ pa.name }}</div>
+      <div class="toolbarcontent" style="padding: 2px; overflow: none; border:1px solid grey;">
+         
+             <form action="." method="post"  class="matrice_form" id="matrice_form_{{ pa.id }}">
+    
+              <div id="matrice_form_container_{{ pa.id }}">
+                <table class="matrice_table">
+                {% for boundfield in pa.form %}
+                  <tr>  
+                    <td>{{ boundfield.label_tag }} {{ boundfield.errors }}</td>
+                    <td>{{ boundfield }}</td>
+                    <td class="matrice_td_1 matrice_button" onclick="table(1, '{{ boundfield.html_name}} ')">  {{ boundfield.field.help1 }}</td>
+                    <td class="matrice_td_2 matrice_button" onclick="table(2, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help2 }}</td>
+                    <td class="matrice_td_3 matrice_button" onclick="table(3, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help3 }}</td>
+                    <td class="matrice_td_4 matrice_button" onclick="table(4, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help4 }}</td>
+                  </tr>
+                {% endfor %}
+                </table>
+                <br />
+            		<input type="submit" value="Save and continue to next" onclick="submit_pa({{ pa.id }});"/>
+            	</div>
+          	</form> 
+          	<br />
+      </div>
+          
+      {% endfor %}
+   
+   {% endfor %}
+    
+
+
+      
+
+	
+</div>
+
+
+
+{% endblock %}
+

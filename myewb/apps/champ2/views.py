@@ -319,20 +319,76 @@ def base_group_metrics(request, group_slug, date_range_slug):
         matrice_value_set.type = MatriceValueSet.MEASUREMENT_TYPE
         matrice_value_set.save()
 
-    matrice_program_area = MatriceProgramArea.objects.get(id=1) #TODO: fixed value hack!
+    mall = Empty() #data object we will add stuff to. stands for matrice (m), all 
+    mall.groups = list()
+
+    mall.base_group_name = base_group.name
+    mall.matrice_date = matrice_date
+
+    #loop thru matrice groups
+    matrice_groups = MatriceGroup.objects.all()
+    for mg in matrice_groups:
+        mg_context = Empty()
+        mg_context.name = mg.title
+        mg_context.program_areas = list()
+               
+        #loop thru program areas for groups
+        for mpa in mg.program_areas.all():
+            pa_context = Empty()
+            
+            #add form to context
+            pa_context.name = mpa.title
+            pa_context.id = mpa.id
+            pa_context.form = MatriceProgramAreaForm(request=request.POST or None, matrice_value_set=matrice_value_set, matrice_program_area=mpa)
     
-    form = MatriceProgramAreaForm(request.POST or None, matrice_value_set=matrice_value_set, matrice_program_area=matrice_program_area)
-    form.base_group_name = base_group.name
-    form.matrice_date = matrice_date
-    form.matrice_program_area = matrice_program_area
-
-    if request.POST and form.is_valid():
-        form.save()
+            #save if valid
+            if request.POST and pa_context.form.is_valid():
+                pa_context.form.save()
+                    
+            #add program area to program areas list
+            mg_context.program_areas.append(pa_context)
         
-    my_template_data["form"] = form        
+        #add group to groups list
+        mall.groups.append(mg_context)
+    
+    my_template_data["matrice_all"] = mall
+    return render_to_response('champ2/matrices_form.html', my_template_data, context_instance=RequestContext(request))
 
 
-    return render_to_response('champ2/matrices.html', my_template_data, context_instance=RequestContext(request))
+#--------------------------------------------------------------------------------------------------------------------
+@group_admin_required()
+def base_group_metrics_ajax(request, group_slug, date_range_slug, metric_prog_area_id):
+    my_template_data = dict()
+
+    matrice_date = MatriceDate.objects.get(slug=date_range_slug)
+    base_group = BaseGroup.objects.get(slug=group_slug)
+
+    matrice_value_set = None
+    try:
+        matrice_value_set = MatriceValueSet.objects.get(base_group=base_group, matrice_date=matrice_date)
+    except(ObjectDoesNotExist):
+        matrice_value_set = MatriceValueSet()
+        matrice_value_set.base_group = BaseGroup.objects.get(slug=group_slug)
+        matrice_value_set.matrice_date = matrice_date
+        matrice_value_set.type = MatriceValueSet.MEASUREMENT_TYPE
+        matrice_value_set.save()
+
+    mpa = MatriceProgramArea.objects.get(id=metric_prog_area_id)
+    
+    pa_context = Empty()
+    pa_context.name = mpa.title
+    pa_context.id = mpa.id
+    pa_context.form = MatriceProgramAreaForm(request=request.POST or None, matrice_value_set=matrice_value_set, matrice_program_area=mpa)
+    
+    #save if valid
+    if request.POST and pa_context.form.is_valid():
+        pa_context.form.save()
+
+    my_template_data["pa"] = pa_context
+    print repr(request.POST) 
+    #my_template_data["debug"] = repr(request.POST) + " matrice1_1-9 = [" + request.POST["matrice1_1-9"] + "]"
+    
+    return render_to_response('champ2/matrices_form_ajax.html', my_template_data, context_instance=RequestContext(request))
 
 
 

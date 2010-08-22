@@ -12,6 +12,6 @@ urlpatterns = patterns('',
     url(r'^(?P<group_slug>[a-zA-Z]+)/goals/(?P<date_range_slug>[a-zA-Z0-9_-]+)$', view='champ2.views.base_group_goals_date', name='champ2_base_group_goals_date'),
     
     url(r'^matrices/(?P<group_slug>[a-zA-Z]+)/(?P<date_range_slug>[a-zA-Z0-9_-]+)/$', view='champ2.views.base_group_metrics', name='champ2_base_group_goals_date'),
-    
+    url(r'^ajax/matrices/(?P<group_slug>[a-zA-Z]+)/(?P<date_range_slug>[a-zA-Z0-9_-]+)/(?P<metric_prog_area_id>\d+)/$', view='champ2.views.base_group_metrics_ajax'),
     
 )

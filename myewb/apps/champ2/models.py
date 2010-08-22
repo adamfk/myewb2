@@ -190,7 +190,7 @@ class MatriceValueSet(models.Model):
         return self.type == self.MEASUREMENT_TYPE
 
     def __unicode__(self):
-        return self.base_group.title + " " + self.matrice_date.__unicode__() + " is_goal:" + str(self.is_goal())
+        return self.base_group.name + " " + self.matrice_date.__unicode__() + " is_goal:" + str(self.is_goal())
 
 #....................................................
 class MatriceMetricValue(models.Model):

@@ -39,38 +39,74 @@ class ProgramAreaCheckBoxForm(DynamicSingleCheckboxForm):
             pass
         return False
 
+#===================================================================================================================================
+# NOTE! there is some special code in here that figures out whether to pass request data to its parent constructor.
+#          it will only pass request data if it can see data meant for this form (by checking names and the forms prefix).
+#          If there is no data for this form, it does not pass the request data to the parent because then this form will be populated
+#          with empty values incorrectly.
 
+#note: instead of passing unamed 1st paramter result, now you have to name it like below
+# form = MatriceProgramAreaForm(request=request, ...) 
 class MatriceProgramAreaForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.matrice_value_set = kwargs.pop('matrice_value_set') #TODO: put in friendly raise error message
         self.matrice_program_area = kwargs.pop('matrice_program_area') #TODO: put in friendly raise error message
-        prefix = "matrice" + str(self.matrice_value_set.id) + "_" + str(self.matrice_program_area.id)
-        
-        super(forms.Form, self).__init__(prefix=prefix,*args, **kwargs) #call parent constructor
-       
+        self._prefix = "matrice" + str(self.matrice_value_set.id) + "_" + str(self.matrice_program_area.id)
+
+
+        #try to get the request object that may have been passed in at start.
+        request = None
+        if kwargs.has_key("request"):
+            request = kwargs.pop("request")
+        if self._has_relevant_data(request) == False:
+            request = None
+            
+   
+        super(forms.Form, self).__init__(request, prefix=self._prefix,*args, **kwargs) #call parent constructor
+              
         #get all MatriceMetrics for this MetricProgram area
         for metric in (self.matrice_program_area.metrics.all()):
-            self.fields[metric.id] = forms.DecimalField(label=metric.title, max_digits=4, decimal_places=3)   #TODO: remove magic numbers?
+            self.fields[metric.id] = forms.DecimalField(label=metric.title, max_digits=4, decimal_places=3, widget=forms.TextInput(attrs={'class':'matrice_input'}))   #TODO: remove magic numbers?
             self.fields[metric.id].required = False
             
             self.fields[metric.id].help1 = metric.help1 
             self.fields[metric.id].help2 = metric.help2
             self.fields[metric.id].help3 = metric.help3
             self.fields[metric.id].help4 = metric.help4
-            
+
             #get value object for this metric
             try:
                 self.fields[metric.id].initial = MatriceMetricValue.objects.get(matrice_metric = metric, matrice_value_set = self.matrice_value_set).value
             except(ObjectDoesNotExist):
                 pass
-            
-            
+    
+    #........................................        
+    def _has_relevant_data(self, data=None):
+        
+        #if no passed in data (like the request), try the forms existing Data
+        if data == None:
+            try:
+                data = self.data
+            except(AttributeError):
+                data = None
+                
+            if data == None:
+                return False
+        
+        for metric in (self.matrice_program_area.metrics.all()):
+            full_key = self._prefix + "-" + str(metric.id) #note: the "-" comes from Django's form name generation, not my code
+            if data.has_key(full_key) == False:
+                return False  #do not save if no data was in the form... otherwise it will just get wiped.
+        
+        return True
     
     def save(self):
-        #matrice_value_set
-        #matrice_program_area
+        #Ensure that data was actually sent to this form by checking the POST data stored in self.data
+        if self._has_relevant_data() == False:
+            return False
         
+     
         for i, field_name in enumerate(self.fields):
             
             if field_name != "owner":
