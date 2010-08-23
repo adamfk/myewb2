@@ -1,0 +1,60 @@
+{% extends 'events/base.html' %}
+{% load events_tags %}
+{% load whiteboard_tags %}
+
+{% block body %}
+
+<style type="text/css"> 
+<!-- 
+
+
+--> 
+</style>
+
+
+<div type="text" id="datepicker"></div>
+
+<div id="event-details">
+  
+
+  <table border="2">
+  <tr><th>Date</th><th>Measurement</th><th>Goal</th></tr>
+  
+  {% for set in sets %}
+    <tr>
+      <td>{{ set.date.title }}</td>
+
+      <td>
+          {% if set.measurement %}
+            <a href="./measurement/{{ set.date.slug }}/" title="click to edit/view">Edit/View</a>
+                  {% ifnotequal set.incomplete_measurement_count  0 %}
+                      {{ set.incomplete_measurement_count }} Fields are not complete.
+                  {% endifnotequal %}                  
+          {% else %}
+            <a href="./measurement/{{ set.date.slug }}/" title="click here to create one">None</a>
+          {% endif %}          
+      </td>
+
+      <td>
+          {% if set.goal %}
+            <a href="./goal/{{ set.date.slug }}/">Edit/View</a>
+                  {% ifnotequal set.incomplete_goal_count  0 %}
+                      {{ set.incomplete_goal_count }} Fields are not complete.
+                  {% endifnotequal %}            
+            
+          {% else %}
+            <a href="./goal/{{ set.date.slug }}/" title="click here to create one">None</a>
+          {% endif %}
+            
+      </td>      
+      
+    </tr>
+  {% endfor %}
+	</table>
+	
+</div>
+
+
+
+{% endblock %}
+
