@@ -30,6 +30,23 @@ table.matrice_table input[type="text"]
   width:3em;
 }
 
+span.count_left
+{
+  color: rgb(0,0,0);
+}
+
+ul.errorlist
+{
+  color: rgb(204,0,0);
+  font-weight: bold;
+}
+
+.bkgd_finished
+{
+  background: none repeat scroll 0 0 #E83234;
+  color: rgb(255,204,204);
+}
+
 --> 
 </style>
 
@@ -75,6 +92,7 @@ function box_hide(div_dom)
     $(div_dom).addClass('hidebox');
 }
 
+//id = program area id
 function submit_pa(id)
 {
   var post_data = {}  //special js. treat same as python dictionary.
@@ -92,18 +110,24 @@ function submit_pa(id)
     post_data[inputs[i].name] = inputs[i].value; //note this is like post_data["some_name"] = 4
   }
  
-
   //now find the parent div with class "toolbarheader" and close it... then open the next one
   parent = myform.parent(".toolbarcontent");
   header = parent.prev()
 
   button = $("input:submit", myform[0])[0]
   button.value = "loading..."
-  button.disabled = true
+  //button.disabled = true
 
   //send data using ajax to champ2/ajax/matrices/<base group slug>/<data slug>/<matrice program area id>/
   loadinto = $("#matrice_form_container_" + id)
-  $.post("http://127.0.0.1:8000/champ2/ajax/matrices/umanitoba/2010f/" + id + "/", post_data,   
+  
+  {% if is_goal %}
+    var url = "http://127.0.0.1:8000/champ2/matrices/{{ base_group.slug }}/goal/{{ matrice_date.slug }}/" + id + "/ajax/"    
+  {% else %}
+    var url = "http://127.0.0.1:8000/champ2/matrices/{{ base_group.slug }}/measurement/{{ matrice_date.slug }}/" + id + "/ajax/"
+  {% endif %}
+  
+  $.post(url, post_data,   
     function(response, status, xhr) 
     { 
       if( status == "error")
@@ -120,7 +144,36 @@ function submit_pa(id)
           //find next to show
           allheaders = $(".toolbarheader")//find all toobarcontent div
           next_header = allheaders.get( allheaders.index(header) + 1);  
-          box_show( next_header );            
+          box_show( next_header );
+          
+          //update the div bar text and color saying whether this program area is finished
+          url2 = "http://127.0.0.1:8000/champ2/matrices/ajax_mpa_left/{{ base_group.slug }}/" + id + "/{{ matrice_value_set.id }}/"
+          $.post(url2, 
+            function(response, status, xhr)
+            {
+              if(status != "error")
+              {
+                  if(response.trim()=="0")
+                  {
+                    $("span", header[0]).html("") //blank it out because it is done!
+                    header.removeClass("bkgd")
+                    header.addClass("bkgd_finished")
+                  }
+                  else
+                  {
+                    $("span", header[0]).html(" | more ")
+                    header.addClass("bkgd")
+                    header.removeClass("bkgd_finished")
+                  }
+                  
+              }
+              else
+              {
+                console.log("failed to ajax load matrice left count");
+              }
+            
+            });
+               
         }
         else
         {
@@ -144,7 +197,7 @@ $(document).ready(function()
   $(".matrice_form").bind("submit", function() { return false; })
   all_boxes = $(".toolbarheader").get()
   
-  for(i=1;i<all_boxes.length;i++)
+  for(i=0;i<all_boxes.length;i++)
   {
     box_hide(all_boxes[i]);
   }
@@ -161,36 +214,47 @@ $(document).ready(function()
 
 <div id="event-details">
 
-   
+   <h1>{{ base_group.name }} Matrice {% if is_goal %} Goal {% else %} Measurement{% endif %} Data for {{ matrice_date.title }}</h1>
+    
    
    {% for group in matrice_all.groups %}
-      <h1>{{ group.name }}</h1>
+      <h2>{{ group.name }}</h2>
       
       {% for pa in group.program_areas %}
-      <div class="toolbarheader bkgd" >{{ pa.name }}</div>
-      <div class="toolbarcontent" style="padding: 2px; overflow: none; border:1px solid grey;">
-         
-             <form action="." method="post"  class="matrice_form" id="matrice_form_{{ pa.id }}">
-    
-              <div id="matrice_form_container_{{ pa.id }}">
-                <table class="matrice_table">
-                {% for boundfield in pa.form %}
-                  <tr>  
-                    <td>{{ boundfield.label_tag }} {{ boundfield.errors }}</td>
-                    <td>{{ boundfield }}</td>
-                    <td class="matrice_td_1 matrice_button" onclick="table(1, '{{ boundfield.html_name}} ')">  {{ boundfield.field.help1 }}</td>
-                    <td class="matrice_td_2 matrice_button" onclick="table(2, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help2 }}</td>
-                    <td class="matrice_td_3 matrice_button" onclick="table(3, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help3 }}</td>
-                    <td class="matrice_td_4 matrice_button" onclick="table(4, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help4 }}</td>
-                  </tr>
-                {% endfor %}
-                </table>
-                <br />
-            		<input type="submit" value="Save and continue to next" onclick="submit_pa({{ pa.id }});"/>
-            	</div>
-          	</form> 
-          	<br />
-      </div>
+        {% ifnotequal pa.metrics_incomplete 0 %}
+            <div class="toolbarheader bkgd" >{{ pa.name }} 
+            <span class="count_left"> | more</span>
+        {% else %}
+            <div class="toolbarheader bkgd_finished" >{{ pa.name }} 
+            <span class="count_left"></span>
+        {% endifnotequal %}
+
+        </div>
+        <div class="toolbarcontent" style="padding: 2px; overflow: none; border:1px solid grey;">
+           
+               <form action="." method="post"  class="matrice_form" id="matrice_form_{{ pa.id }}">
+      
+                <div id="matrice_form_container_{{ pa.id }}">
+                  <table class="matrice_table">
+                  <tr><td></td><td></td><td>Ah! Capacity</td><td>Minimum Capacity</td><td>Medium Capacity</td><td>High Capacity</td></tr>
+                  
+                  {% for boundfield in pa.form %}
+                    <tr>  
+                      <td>{{ boundfield.label_tag }} {{ boundfield.errors }}</td>
+                      <td>{{ boundfield }}</td>
+                      <td class="matrice_td_1 matrice_button" onclick="table(1, '{{ boundfield.html_name}} ')">  {{ boundfield.field.help1 }}</td>
+                      <td class="matrice_td_2 matrice_button" onclick="table(2, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help2 }}</td>
+                      <td class="matrice_td_3 matrice_button" onclick="table(3, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help3 }}</td>
+                      <td class="matrice_td_4 matrice_button" onclick="table(4, '{{ boundfield.html_name}} ')"> {{ boundfield.field.help4 }}</td>
+                    </tr>
+                  {% endfor %}
+                  </table>
+                  <br />
+              		<input type="submit" value="Save and continue to next" onclick="submit_pa({{ pa.id }});"/>
+              	</div>
+            	</form> 
+            	<br />
+        </div>
           
       {% endfor %}
    

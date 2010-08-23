@@ -11,7 +11,12 @@ urlpatterns = patterns('',
     url(r'^(?P<group_slug>[a-zA-Z]+)/goals/$', view='champ2.views.base_group_goals', name='champ2_base_group_goals'),
     url(r'^(?P<group_slug>[a-zA-Z]+)/goals/(?P<date_range_slug>[a-zA-Z0-9_-]+)$', view='champ2.views.base_group_goals_date', name='champ2_base_group_goals_date'),
     
-    url(r'^matrices/(?P<group_slug>[a-zA-Z]+)/(?P<date_range_slug>[a-zA-Z0-9_-]+)/$', view='champ2.views.base_group_metrics', name='champ2_base_group_goals_date'),
-    url(r'^ajax/matrices/(?P<group_slug>[a-zA-Z]+)/(?P<date_range_slug>[a-zA-Z0-9_-]+)/(?P<metric_prog_area_id>\d+)/$', view='champ2.views.base_group_metrics_ajax'),
+    url(r'^matrices/(?P<group_slug>[a-zA-Z]+)/$', view='champ2.views.matrices_group', name='champ2_base_group_goals_date'),
+    url(r'^matrices/(?P<group_slug>[a-zA-Z]+)/goal/(?P<date_range_slug>[a-zA-Z0-9_-]+)/$', view='champ2.views.matrices_group_goal_date', name='fwefwfe'), #TODO: fix names
+    url(r'^matrices/(?P<group_slug>[a-zA-Z]+)/measurement/(?P<date_range_slug>[a-zA-Z0-9_-]+)/$', view='champ2.views.matrices_group_measurement_date', name='fwefwfe'), #TODO: fix names
+    
+    url(r'^matrices/(?P<group_slug>[a-zA-Z]+)/goal/(?P<date_range_slug>[a-zA-Z0-9_-]+)/(?P<metric_prog_area_id>\d+)/ajax/$',            view='champ2.views.base_group_metrics_goal_ajax'),
+    url(r'^matrices/(?P<group_slug>[a-zA-Z]+)/measurement/(?P<date_range_slug>[a-zA-Z0-9_-]+)/(?P<metric_prog_area_id>\d+)/ajax/$',     view='champ2.views.base_group_metrics_measurement_ajax'),
+    url(r'^matrices/ajax_mpa_left/(?P<group_slug>[a-zA-Z]+)/(?P<metric_prog_area_id>\d+)/(?P<metric_value_set_id>\d+)/$',     view='champ2.views.ajax_matrice_program_area_metrics_left'),
     
 )

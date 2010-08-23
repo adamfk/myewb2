@@ -9,6 +9,9 @@ from django.core.exceptions import ObjectDoesNotExist
 import datetime
 
 #
+from champ2.helper import matrice_value_set_incomplete_count, matrice_value_set_invalid_count, matrice_program_area_incomplete_count
+
+#
 from events.models import Event
 from networks.models import Network
 from base_groups.decorators import group_admin_required   #this is a test if exec. Note: must be used like"@group_admin_required()" don't forget the "()"
@@ -297,26 +300,76 @@ def base_group_goals_date(request, group_slug, date_range_slug):
 
     pass
 
+#=============================================================
+#show them a page of all matrice goals and entries by date
+def matrices_group(request, group_slug): 
+    my_template_data = dict()
+
+    base_group = BaseGroup.objects.get(slug=group_slug)
+    dates = MatriceDate.objects.all()
+    
+
+    sets = list()
+    
+    for date in dates:
+        
+        set = Empty()
+        set.date = date
+        
+        #find any GOAL matrice value sets for the date and group
+        try:
+            vs = MatriceValueSet.objects.get(base_group=base_group, matrice_date=date, type=MatriceValueSet.GOAL_TYPE)
+            set.goal = vs
+        except(ObjectDoesNotExist):
+            set.goal = None 
+
+        #find any MEASURE matrice value sets for the date and group
+        try:
+            vs = MatriceValueSet.objects.get(base_group=base_group, matrice_date=date, type=MatriceValueSet.MEASUREMENT_TYPE)
+            set.measurement = vs
+        except(ObjectDoesNotExist):
+            set.measurement = None
+        
+        if set.goal:
+#            set.invalid_goal_count =  matrice_value_set_invalid_count(set.goal)                    #this doesn't currently make sense because no invalid values can be stored
+            set.incomplete_goal_count =  matrice_value_set_incomplete_count(set.goal)
+        
+        if set.measurement:
+#            set.invalid_measurement_count =  matrice_value_set_invalid_count(set.measurement)      #this doesn't currently make sense because no invalid values can be stored
+            set.incomplete_measurement_count =  matrice_value_set_incomplete_count(set.measurement)
+       
+        sets.append(set) 
+                
+    my_template_data["sets"] = sets
+
+    return render_to_response('champ2/matrices_group.html', my_template_data, context_instance=RequestContext(request))
 
 #======================================================
-#
-#======================================================
+def matrices_group_goal_date(request, group_slug, date_range_slug):
+    return matrices_group_date(request, group_slug, date_range_slug, True)
+   
+def matrices_group_measurement_date(request, group_slug, date_range_slug):
+    return matrices_group_date(request, group_slug, date_range_slug, False)
+
 @group_admin_required()
-def base_group_metrics(request, group_slug, date_range_slug):
+def matrices_group_date(request, group_slug, date_range_slug, is_goal):
     my_template_data = dict()
     
     matrice_date = MatriceDate.objects.get(slug=date_range_slug)
-    base_group = BaseGroup.objects.get(slug=group_slug)
-    #TODO: differentiate between goals and forms for value sets
+    base_group = BaseGroup.objects.get(slug=group_slug)    
     
+    mvs_type = MatriceValueSet.MEASUREMENT_TYPE
+    if is_goal:
+        mvs_type = MatriceValueSet.GOAL_TYPE
+        
     matrice_value_set = None
     try:
-        matrice_value_set = MatriceValueSet.objects.get(base_group=base_group, matrice_date=matrice_date)
+        matrice_value_set = MatriceValueSet.objects.get(base_group=base_group, matrice_date=matrice_date, type=mvs_type)
     except(ObjectDoesNotExist):
         matrice_value_set = MatriceValueSet()
         matrice_value_set.base_group = BaseGroup.objects.get(slug=group_slug)
         matrice_value_set.matrice_date = matrice_date
-        matrice_value_set.type = MatriceValueSet.MEASUREMENT_TYPE
+        matrice_value_set.type = mvs_type
         matrice_value_set.save()
 
     mall = Empty() #data object we will add stuff to. stands for matrice (m), all 
@@ -340,6 +393,7 @@ def base_group_metrics(request, group_slug, date_range_slug):
             pa_context.name = mpa.title
             pa_context.id = mpa.id
             pa_context.form = MatriceProgramAreaForm(request=request.POST or None, matrice_value_set=matrice_value_set, matrice_program_area=mpa)
+            pa_context.metrics_incomplete = matrice_program_area_incomplete_count(mpa, matrice_value_set)
     
             #save if valid
             if request.POST and pa_context.form.is_valid():
@@ -350,27 +404,44 @@ def base_group_metrics(request, group_slug, date_range_slug):
         
         #add group to groups list
         mall.groups.append(mg_context)
+
+        #TODO: the URL to post new using AJAX is HARD CODED!!!! BAD!
+    
+    my_template_data["matrice_date"] = matrice_date
+    my_template_data["base_group"] = base_group
+    my_template_data["matrice_value_set"] = matrice_value_set
+    my_template_data["is_goal"] = is_goal
     
     my_template_data["matrice_all"] = mall
     return render_to_response('champ2/matrices_form.html', my_template_data, context_instance=RequestContext(request))
 
 
 #--------------------------------------------------------------------------------------------------------------------
+def base_group_metrics_goal_ajax(request, group_slug, date_range_slug, metric_prog_area_id):
+    return base_group_metrics_ajax(request, group_slug, date_range_slug, metric_prog_area_id, True)
+
+def base_group_metrics_measurement_ajax(request, group_slug, date_range_slug, metric_prog_area_id):
+    return base_group_metrics_ajax(request, group_slug, date_range_slug, metric_prog_area_id, False)
+ 
 @group_admin_required()
-def base_group_metrics_ajax(request, group_slug, date_range_slug, metric_prog_area_id):
-    my_template_data = dict()
+def base_group_metrics_ajax(request, group_slug, date_range_slug, metric_prog_area_id, is_goal):
+    my_template_data = dict()   
+
+    mvs_type = MatriceValueSet.MEASUREMENT_TYPE
+    if is_goal:
+        mvs_type = MatriceValueSet.GOAL_TYPE
 
     matrice_date = MatriceDate.objects.get(slug=date_range_slug)
     base_group = BaseGroup.objects.get(slug=group_slug)
 
     matrice_value_set = None
     try:
-        matrice_value_set = MatriceValueSet.objects.get(base_group=base_group, matrice_date=matrice_date)
+        matrice_value_set = MatriceValueSet.objects.get(base_group=base_group, matrice_date=matrice_date, type=mvs_type)
     except(ObjectDoesNotExist):
         matrice_value_set = MatriceValueSet()
         matrice_value_set.base_group = BaseGroup.objects.get(slug=group_slug)
         matrice_value_set.matrice_date = matrice_date
-        matrice_value_set.type = MatriceValueSet.MEASUREMENT_TYPE
+        matrice_value_set.type = mvs_type
         matrice_value_set.save()
 
     mpa = MatriceProgramArea.objects.get(id=metric_prog_area_id)
@@ -390,6 +461,12 @@ def base_group_metrics_ajax(request, group_slug, date_range_slug, metric_prog_ar
     
     return render_to_response('champ2/matrices_form_ajax.html', my_template_data, context_instance=RequestContext(request))
 
+#......................................
+@group_admin_required()
+def ajax_matrice_program_area_metrics_left(request, group_slug, metric_prog_area_id, metric_value_set_id):
+    result = matrice_program_area_incomplete_count( MatriceProgramArea.objects.get(id = metric_prog_area_id), MatriceValueSet.objects.get(id=metric_value_set_id) ) 
+    print "  ........ rez:"  + str(result)
+    return HttpResponse(result)
 
 
 #======================================================
