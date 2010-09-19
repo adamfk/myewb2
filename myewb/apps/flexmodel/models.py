@@ -12,6 +12,8 @@ from EquationParser import parse_equation, ParseCommand, ParseNumber, ParseOpera
 from django.db.models.aggregates import Sum
 from django.core.exceptions import ObjectDoesNotExist
 
+from django.db.models.base import Empty
+
 #NOTE: the coupled import. not great, but needed now.
 
 
@@ -91,7 +93,34 @@ class DynamicSingleCheckboxForm(forms.Form):
         self.fields[post_name] = forms.BooleanField( widget=forms.widgets.CheckboxInput(attrs={'class':'special_class'}))
         self.fields[post_name].required = False
         
+
+
+class GroupWidget(forms.HiddenInput):
+    
+    def __init__(self, *args, **kwargs):
+        self.legend = "something"
+        if 'legend' in kwargs:
+            self.legend = kwargs.pop('legend')
+        super(GroupWidget, self).__init__() #call parent constructor
         
+        self.child_form = None
+    
+    def set_child_form(self, form):
+        self.child_form = form
+    
+    def render(self, name, value, attrs=None):
+        
+        result =  "<fieldset><legend>" + str(self.legend) + "</legend>"
+    
+        result = result + self.child_form.as_p()
+        
+        result = result + "</fieldset>"
+        
+        print result
+        return result
+
+
+                
 #====================================#====================================
 # 
 #====================================#====================================
@@ -111,7 +140,8 @@ class FieldGroupForm(forms.Form):
   
         field_group = kwargs.pop('field_group')
         owner = kwargs.pop('owner')
-
+        assert field_group
+        
         #pull off optional parameters
         calc_base_group = None #by default unless passed in
         if 'calc_base_group' in kwargs:
@@ -129,69 +159,90 @@ class FieldGroupForm(forms.Form):
         if 'extra_prefix' in kwargs:
             extra_prefix = kwargs.pop('extra_prefix')
         
-        super(forms.Form, self).__init__(prefix=field_group.slug + extra_prefix,*args, **kwargs) #call parent constructor
+        self._form_prefix = field_group.slug + extra_prefix
+       
+        super(forms.Form, self).__init__(prefix = self._form_prefix,*args, **kwargs) #call parent constructor
         self.fields["owner"] = forms.IntegerField(initial=owner.id, widget=forms.widgets.HiddenInput())
         
         #get all fields for this field group
         fields = FieldGroup.objects.get_visible_fields(field_group, get_children=False)
         for i, field in enumerate(fields):
-            self.fields[self.get_post_name(field)] = self.field_2_formfield(field)
-            self.fields[self.get_post_name(field)].required = False #field.required
-                 
-            #=========================================================
-            if field.type == AnyField.SINGLE_CHOICE_TYPE:
-                #try to find initial value for it
-                print "Single choice value starting " + field.title
-                kid_fields = AnyField.objects.get_children(field)
-                
-                #find the one that is set
-                for kid_field in kid_fields:
-                    kid_values = AnyValue.objects.filter_by(owner=owner, any_field=kid_field).filter(integer=1)
-                    if kid_values.count() > 0:
-                        self.fields[self.get_post_name(field)].initial = kid_field.id
+            self.initialize_field(self, field, owner, calc_base_group, calc_mode, calc_parent_class)
+    
+    @classmethod
+    #cls = this class object autopassed in by python
+    def initialize_field(cls, form, field, owner, calc_base_group, calc_mode, calc_parent_class):
+        form.fields[cls.get_post_name(field)] = cls.field_2_formfield(field)
+        form.fields[cls.get_post_name(field)].required = False #field.required
+             
+        #=========================================================
+        if field.type == AnyField.SINGLE_CHOICE_TYPE:
+            #try to find initial value for it
+            print "Single choice value starting " + field.title
+            kid_fields = AnyField.objects.get_children(field)
+            
+            #find the one that is set
+            for kid_field in kid_fields:
+                kid_values = AnyValue.objects.filter_by(owner=owner, any_field=kid_field).filter(integer=1)
+                if kid_values.count() > 0:
+                    form.fields[cls.get_post_name(field)].initial = kid_field.id
 
 
-            #=========================================================
-            elif field.type == AnyField.MULTIPLE_CHOICE_TYPE:
-                #try to find initial value for it
-                print "multi choice value starting " + field.title
-                kid_fields = AnyField.objects.get_children(field).filter(anyvalue__integer=1)      
+        #=========================================================
+        elif field.type == AnyField.MULTIPLE_CHOICE_TYPE:
+            #try to find initial value for it
+            print "multi choice value starting " + field.title
+            kid_fields = AnyField.objects.get_children(field).filter(anyvalue__integer=1)      
+           
+            #find the ones that are set
+            initial = list()
+            for kid_field in kid_fields:
+                initial.append(kid_field.id)
+
+            form.fields[cls.get_post_name(field)].initial = initial
+
+        #-----------------GROUP TYPE--------------------------------
+        elif field.type == AnyField.GROUP_TYPE:
+            kid_fields = AnyField.objects.get_children(field)      
+            kid_form = forms.Form(prefix = form._form_prefix)
+
+            #find the ones that are set
+            for kid_field in kid_fields:
+                cls.initialize_field(kid_form, kid_field, owner, calc_base_group, calc_mode, calc_parent_class)
+                kid_form.fields[cls.get_post_name(kid_field)] = cls.field_2_formfield(kid_field)
+                kid_form.fields[cls.get_post_name(kid_field)].required = False #field.required
                
-                #find the ones that are set
-                initial = list()
-                for kid_field in kid_fields:
-                    initial.append(kid_field.id)
-
-                self.fields[self.get_post_name(field)].initial = initial
+            form.fields[cls.get_post_name(field)].widget.set_child_form(kid_form)
+            
 
 
-            #=========================================================       
-            else:
-                #look for an anyvalue for this anyfield and set an initial value
-                print "normal value starting "
+        #=========================================================       
+        else:
+            #look for an anyvalue for this anyfield and set an initial value
+            print "normal value starting " + str(field)
 
-                #TODO: PUT MORE HERE! should test if rendering as calculated or not
-                if field.calc and calc_mode != self.CALC_MODE_FORM:
-                    print "try calc"
+            #TODO: PUT MORE HERE! should test if rendering as calculated or not
+            if field.calc and calc_mode != form.CALC_MODE_FORM:
+                print "try calc"
+                
+                if calc_mode == form.CALC_MODE_PLAN:
+                    form.fields[cls.get_post_name(field)].initial = field.calc.compile(base_group=calc_base_group, parent_class=calc_parent_class, plan_not_eval=True)
+                    print form.fields[cls.get_post_name(field)].initial
+                elif calc_mode == form.CALC_MODE_EVAL:
+                    form.fields[cls.get_post_name(field)].initial = field.calc.compile(base_group=calc_base_group, parent_class=calc_parent_class, plan_not_eval=False)
+                else:
+                    raise CustomException("Invalid value for calc_mode " + calc_mode +". See defines in this class for valid values.")
                     
-                    if calc_mode == self.CALC_MODE_PLAN:
-                        self.fields[self.get_post_name(field)].initial = field.calc.compile(base_group=calc_base_group, parent_class=calc_parent_class, plan_not_eval=True)
-                        print self.fields[self.get_post_name(field)].initial
-                    elif calc_mode == self.CALC_MODE_EVAL:
-                        self.fields[self.get_post_name(field)].initial = field.calc.compile(base_group=calc_base_group, parent_class=calc_parent_class, plan_not_eval=False)
-                    else:
-                        raise CustomException("Invalid value for calc_mode " + calc_mode +". See defines in this class for valid values.")
+            else:                
+                #not for calculating...
+                try:
+                    v = AnyValue.objects.filter(owner=owner).get(any_field=field)
+                    form.fields[cls.get_post_name(field)].initial = v.get_value()
                         
-                else:                
-                    #not for calculating...
-                    try:
-                        v = AnyValue.objects.filter(owner=owner).get(any_field=field)
-                        self.fields[self.get_post_name(field)].initial = v.get_value()
-                            
-                    except ObjectDoesNotExist as detail:
-                        print "failed! " , detail #TODO: fix this... really crappy coding
-                        self.fields[self.get_post_name(field)].initial = 0
-                    
+                except ObjectDoesNotExist as detail:
+                    print "failed! for field:" + str(field), detail #TODO: fix this... really crappy coding
+                    form.fields[cls.get_post_name(field)].initial = 0
+    
     
     #================================================================
     # ------------ save function ----------
@@ -204,10 +255,8 @@ class FieldGroupForm(forms.Form):
         
         owner = AnyValueOwner.objects.get(id=self.cleaned_data["owner"])
         
-#        print "more tests"
-#        print repr(self.fields)
 
-        for i, field_name in enumerate(self.fields):
+        for field_name in enumerate(self.fields):
             
             #don't process field for "owner"
             if field_name != "owner":
@@ -224,16 +273,12 @@ class FieldGroupForm(forms.Form):
                 #have to process choice fields differently
                 #-----------------MULTIPLE_CHOICE_TYPE-----------------------
                 if any_field.type == AnyField.MULTIPLE_CHOICE_TYPE:
-                    #TODO: complete multiple choice types 
-                    print "print out field stuff"
-                    print repr(field_value)
                     
                     #find any other child value field (choice) for this parent field
                     kid_fields = AnyField.objects.get_children(any_field)
                 
                     #1st mark all values as false
                     for kid in kid_fields:
-                        print "kid " + kid.title
                         #find any associated values for this child option
                         kid_values = AnyValue.objects.filter_by(owner=owner, any_field=kid)
                 
@@ -290,6 +335,9 @@ class FieldGroupForm(forms.Form):
                             selected_value = AnyValue.new(AnyField.BOOLEAN_TYPE, owner, selected_child)                    
 
                         selected_value.update_value(1) #set it to True
+                
+
+                
                         
                 #-----------------NORMAL TYPE OF FIELD-------------------------
                 else:
@@ -310,7 +358,8 @@ class FieldGroupForm(forms.Form):
     #========================================================    
     #provides a unique id for form processing for this field
     # form: <generic field id>
-    def get_post_name(self, any_field):
+    @staticmethod
+    def get_post_name(any_field):
         #return str(any_field.field_group.id) + "__" + str(any_field.id)
         return str(any_field.id)
     
@@ -321,7 +370,8 @@ class FieldGroupForm(forms.Form):
     
     #========================================================
     #translates the any_field into a Django form field object
-    def field_2_formfield(self, any_field, *args, **kwargs):
+    @staticmethod
+    def field_2_formfield(any_field, *args, **kwargs):
         result = 0
     
         #...................................................
@@ -357,6 +407,11 @@ class FieldGroupForm(forms.Form):
             choices = AnyField.objects.get_choices_for_parent(any_field)
             result = forms.MultipleChoiceField(choices=choices, label=any_field.title, widget=forms.CheckboxSelectMultiple)
         
+        #...................................................
+        elif any_field.type == AnyField.GROUP_TYPE:
+            result = forms.CharField(label=any_field.title, widget=GroupWidget(legend=any_field.title))
+        else:
+            raise CustomException("Invalid value for any_field.type " + str(any_field.type) +".")
         
         return result
 
@@ -582,7 +637,8 @@ class AnyField(models.Model):
     CALC_TYPE = 51          #can be used to aggregate, calculate...
     
     FILE_TYPE = 60
-
+    
+    GROUP_TYPE = 70
 
     FIELD_TYPE_CHOICES = (
         (DATE_TYPE,         'Date'),
@@ -601,7 +657,7 @@ class AnyField(models.Model):
         
         (CALC_TYPE,                 "Calculation"),
         (FILE_TYPE,                 "File input"),
-        
+        (GROUP_TYPE,                "Grouping"),    
     )
 
     CALC_ADD = 1

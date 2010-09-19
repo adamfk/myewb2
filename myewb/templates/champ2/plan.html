@@ -1,0 +1,63 @@
+{% extends 'events/base.html' %}
+{% load events_tags %}
+{% load whiteboard_tags %}
+
+{% block body %}
+
+<style type="text/css"> 
+<!-- 
+.header
+{
+  padding: 5px 0 5px 5px;
+  font-weight: bold;
+  color: white;
+}
+--> 
+</style>
+
+
+<script type="text/javascript"> 
+<!-- 
+
+$(document).ready(function()
+{ 
+  $(".header").click( function()
+    {
+      $("input:checkbox", this)[0].checked = !$("input:checkbox", this)[0].checked  
+      $(this).next().slideToggle("slow");
+      $(this).toggleClass('hidebox');
+    }
+  );
+
+
+});
+
+
+
+--> 
+</script>
+
+
+
+<div type="text" id="datepicker"></div>
+
+<div id="event-details">
+    
+ <form action="." method="post">
+    {% for form in formgroup %}
+       <div class="bkgd header"> {{ form.groupname }} {{ form.checkbox }} </div>
+       <div class="toolbarcontent" style="padding: 2px; overflow: none; border:1px solid grey;">    
+       {{ form.subform.as_p }}
+       </div>
+
+    {% endfor %}
+    
+		<input type="submit" value="Save changes" />
+	</form>
+	
+</div>
+
+
+
+{% endblock %}
+
