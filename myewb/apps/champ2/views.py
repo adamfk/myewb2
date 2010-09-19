@@ -143,7 +143,7 @@ def plan(request, event_id):
         if valid:
             return HttpResponseRedirect(domain ) # Redirect after POST
 
-    return render_to_response('champ2/event.html', my_template_data, context_instance=RequestContext(request))
+    return render_to_response('champ2/plan.html', my_template_data, context_instance=RequestContext(request))
 
 #======================================================
 #TEMPLATE to copy and paste from
@@ -207,7 +207,7 @@ def base_group(request, network_slug):
     
     #get base group
     network = Network.objects.get(slug=network_slug) #TODO: get or 404
-       
+   
     #get all events for this chater
 #    events = Event.objects.filter(parent_group = network)
     events = network.events.all()

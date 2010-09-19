@@ -4,7 +4,7 @@ from django.forms import ModelForm  #used for creating forms at bottom of page
 from django.db.models import forms
 #from champs.dprint import dumpObj  #for fancy debug printing
 
-#from champs.settings import DEBUG
+from settings import DEBUG
 
 from django.db.models.aggregates import Sum
 
@@ -136,7 +136,7 @@ class FieldGroupForm(forms.Form):
         fields = FieldGroup.objects.get_visible_fields(field_group, get_children=False)
         for i, field in enumerate(fields):
             self.fields[self.get_post_name(field)] = self.field_2_formfield(field)
-            self.fields[self.get_post_name(field)].required = field.required
+            self.fields[self.get_post_name(field)].required = False #field.required
                  
             #=========================================================
             if field.type == AnyField.SINGLE_CHOICE_TYPE:
@@ -485,9 +485,7 @@ class Calc(models.Model):
                         except(ObjectDoesNotExist):
                             raise CustomException("Missing or invalid CONDITIONAL field group and/or field name: " + item.conditional_any_field)               
                     
-                    print "CONDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDITTTTTTTTTTTTTTTTTTTIONNNNNNNNNNNNNN"
-                    print item.conditional_operator, item.conditional_program_area, item.conditional_field_group, item.conditional_any_field, item.conditional_value
-                    
+               
                     if item.conditional_operator != "==" and item.conditional_operator != "=":
                         raise CustomException("Only == and = comparisons are supported right now")
                     
@@ -583,6 +581,7 @@ class AnyField(models.Model):
                             #Can only work on fields within same form (local).
     CALC_TYPE = 51          #can be used to aggregate, calculate...
     
+    FILE_TYPE = 60
 
 
     FIELD_TYPE_CHOICES = (
@@ -599,6 +598,10 @@ class AnyField(models.Model):
         
         (SINGLE_CHOICE_TYPE,         'Single choice'),
         (MULTIPLE_CHOICE_TYPE,         'Multiple choice'),
+        
+        (CALC_TYPE,                 "Calculation"),
+        (FILE_TYPE,                 "File input"),
+        
     )
 
     CALC_ADD = 1
@@ -615,14 +618,16 @@ class AnyField(models.Model):
 
     field_group = models.ForeignKey(FieldGroup)
 
-    name = models.CharField(max_length = 30)
+    name = models.CharField(max_length = 30, blank=True)
     title = models.CharField(max_length = 100)
-    #help text?
-    private = models.BooleanField(default=0) #to restrict access to owning chapter
-    visible = models.BooleanField(default=1) #instead of deleting things
-    required = models.BooleanField(default=1) #is this field required before submitting?
+    help_text = models.CharField(max_length = 300, blank=True)
     
-    order = models.IntegerField()  #used for order_by
+    private = models.BooleanField(default=0)  #to restrict access to owning chapter
+    visible = models.BooleanField(default=1)  #instead of deleting things
+    required = models.BooleanField(default=1) #is this field required before submitting?
+    copy = models.NullBooleanField(default=1, blank=True, null=True)     #if true, this field's value will be copied when larger event copied.
+    
+    order = models.IntegerField(blank=True, null=True)  #used for order_by
     type = models.IntegerField(choices=FIELD_TYPE_CHOICES, default=INTEGER_TYPE)
     parent_field = models.ForeignKey('self', blank=True, null=True) #this is a 
     calc = models.ForeignKey(Calc, blank=True, null=True, default=None)
@@ -715,6 +720,8 @@ class AnyValue(models.Model):
     
     char = models.CharField(max_length = 50, blank=True)
     text = models.TextField(blank=True)
+    
+    copied = models.BooleanField(default = False) #if True, it means that this value was copied when the larger event was copied and needs to be confirmed as valid by a user before the event can be confirmed.
 
     #TODO: create accessor methods that check if this value type matches what is being accessed
     

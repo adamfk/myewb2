@@ -85,9 +85,20 @@ function box_show(div_dom)
     $(div_dom).removeClass('hidebox');
 }
 
-function box_hide(div_dom)
+function box_hide(div_dom, func, func_param)
 {
-    $(div_dom).next().slideUp("slow");
+    if( func != null)
+    {
+        $(div_dom).next().slideUp("slow", function()
+        {
+            func(func_param);
+        }); 
+    }
+    else
+    {
+        $(div_dom).next().slideUp("slow");
+    }
+        
     $(div_dom).removeClass('hidebox'); //just incase there, but probably not needed
     $(div_dom).addClass('hidebox');
 }
@@ -138,13 +149,32 @@ function submit_pa(id)
         
         if(response.trim().substr(0,3) != "ERR")
         {
-          box_hide(header)
-          header.show();
-  
           //find next to show
           allheaders = $(".toolbarheader")//find all toobarcontent div
-          next_header = allheaders.get( allheaders.index(header) + 1);  
-          box_show( next_header );
+          
+          //next_header will be the next header, or the 1st if at the end
+          next_header = null;
+          next_header_index = allheaders.index(header) + 1;
+          if(allheaders.length > next_header_index)
+          {
+            next_header = allheaders.get( allheaders.index(header) + 1);
+          }
+          else
+          {
+            next_header = allheaders.get( 0 ); //scroll back to the top
+          }
+       
+          //hide current header
+          box_hide(header, scroll_to, next_header);
+                  
+          //if there is another header to show
+          if(next_header_index < allheaders.length )
+          {
+            //show next header
+            box_show( next_header );
+          }
+          
+          
           
           //update the div bar text and color saying whether this program area is finished
           url2 = "http://127.0.0.1:8000/champ2/matrices/ajax_mpa_left/{{ base_group.slug }}/" + id + "/{{ matrice_value_set.id }}/"
@@ -199,12 +229,16 @@ $(document).ready(function()
   
   for(i=0;i<all_boxes.length;i++)
   {
-    box_hide(all_boxes[i]);
+    box_hide(all_boxes[i], null, null);
   }
   
 
 });
 
+function scroll_to(header)
+{
+  $.scrollTo(header, "slow");
+}
 
 --> 
 </script>
