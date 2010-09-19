@@ -42,7 +42,7 @@ class FieldGroupManager(models.Manager):
 class FieldGroup(models.Model):
     
     name = models.CharField(max_length = 50)
-    slug = models.CharField(max_length = 6, unique = True)
+    slug = models.CharField(max_length = 10, unique = True)
     objects = FieldGroupManager()
     
     def __unicode__(self):
@@ -94,31 +94,46 @@ class DynamicSingleCheckboxForm(forms.Form):
         self.fields[post_name].required = False
         
 
+#
+#class GroupWidget(forms.HiddenInput):
+#    
+#   
+#    def set_child_form(self, form):
+#        self.child_form = form
+#    
+#    def render(self, name, value, attrs=None):
+#        
+#        result =  "<fieldset><legend>" + str(self.legend) + "</legend>"
+#    
+#        result = result + self.child_form.as_p()
+#        
+#        result = result + "</fieldset>"
+#        
+#        print result
+#        return result
 
-class GroupWidget(forms.HiddenInput):
+
+class FieldsetStartWidget(forms.Widget):
     
     def __init__(self, *args, **kwargs):
         self.legend = "something"
         if 'legend' in kwargs:
             self.legend = kwargs.pop('legend')
-        super(GroupWidget, self).__init__() #call parent constructor
+        super(FieldsetStartWidget, self).__init__() #call parent constructor
         
-        self.child_form = None
-    
-    def set_child_form(self, form):
-        self.child_form = form
-    
     def render(self, name, value, attrs=None):
-        
-        result =  "<fieldset><legend>" + str(self.legend) + "</legend>"
-    
-        result = result + self.child_form.as_p()
-        
-        result = result + "</fieldset>"
-        
-        print result
+        #result =  "<fieldset><legend>" + str(self.legend) + "</legend>"
+        result = "<div>"
         return result
 
+
+class FieldsetEndWidget(forms.Widget):
+
+    def render(self, name, value, attrs=None):
+        
+        result =  "</fieldset>"
+        result =  "</div>"
+        return result
 
                 
 #====================================#====================================
@@ -174,6 +189,7 @@ class FieldGroupForm(forms.Form):
     def initialize_field(cls, form, field, owner, calc_base_group, calc_mode, calc_parent_class):
         form.fields[cls.get_post_name(field)] = cls.field_2_formfield(field)
         form.fields[cls.get_post_name(field)].required = False #field.required
+        form.fields[cls.get_post_name(field)].is_group = False #by default... changed if actually a group
              
         #=========================================================
         if field.type == AnyField.SINGLE_CHOICE_TYPE:
@@ -203,16 +219,17 @@ class FieldGroupForm(forms.Form):
 
         #-----------------GROUP TYPE--------------------------------
         elif field.type == AnyField.GROUP_TYPE:
+            print "GRRRROUP starting " + field.title
             kid_fields = AnyField.objects.get_children(field)      
-            kid_form = forms.Form(prefix = form._form_prefix)
 
-            #find the ones that are set
             for kid_field in kid_fields:
-                cls.initialize_field(kid_form, kid_field, owner, calc_base_group, calc_mode, calc_parent_class)
-                kid_form.fields[cls.get_post_name(kid_field)] = cls.field_2_formfield(kid_field)
-                kid_form.fields[cls.get_post_name(kid_field)].required = False #field.required
-               
-            form.fields[cls.get_post_name(field)].widget.set_child_form(kid_form)
+                cls.initialize_field(form, kid_field, owner, calc_base_group, calc_mode, calc_parent_class)
+            
+            form.fields[cls.get_post_name(field) + "groupend"] = forms.CharField(widget=FieldsetEndWidget())
+            form.fields[cls.get_post_name(field) + "groupend"].required = False #field.required
+            
+            form.fields[cls.get_post_name(field) + "groupend"].is_group = True #template knows to hide label display
+            form.fields[cls.get_post_name(field)].is_group = True
             
 
 
@@ -241,7 +258,7 @@ class FieldGroupForm(forms.Form):
                         
                 except ObjectDoesNotExist as detail:
                     print "failed! for field:" + str(field), detail #TODO: fix this... really crappy coding
-                    form.fields[cls.get_post_name(field)].initial = 0
+                    form.fields[cls.get_post_name(field)].initial = ""
     
     
     #================================================================
@@ -254,12 +271,11 @@ class FieldGroupForm(forms.Form):
     def save(self, *args, **kwargs):   
         
         owner = AnyValueOwner.objects.get(id=self.cleaned_data["owner"])
-        
 
-        for field_name in enumerate(self.fields):
+        for i, field_name in enumerate(self.fields): #DO NOT REMOVE THE "i"!!! IT IS needed
             
-            #don't process field for "owner"
-            if field_name != "owner":
+            #don't process field for "owner" or f
+            if field_name != "owner" and self.fields[field_name].is_group == False:
             
                 any_field_id = self.post_name_2_ids(field_name)
                 any_field = AnyField.objects.get(id=any_field_id)
@@ -396,7 +412,7 @@ class FieldGroupForm(forms.Form):
             result = forms.CharField(label=any_field.title)
             
         elif any_field.type == AnyField.TEXT_TYPE:
-            result = forms.Textarea(label=any_field.title)                    
+            result = forms.fields.CharField(label=any_field.title, widget=forms.widgets.Textarea)                    
         
         #...................................................       
         elif any_field.type == AnyField.SINGLE_CHOICE_TYPE:
@@ -409,7 +425,12 @@ class FieldGroupForm(forms.Form):
         
         #...................................................
         elif any_field.type == AnyField.GROUP_TYPE:
-            result = forms.CharField(label=any_field.title, widget=GroupWidget(legend=any_field.title))
+            result = forms.CharField(label=any_field.title, widget=FieldsetStartWidget(legend=any_field.title))
+        
+        #...................................................
+        elif any_field.type == AnyField.FILE_TYPE:
+            result = forms.FileField(label=any_field.title)
+        
         else:
             raise CustomException("Invalid value for any_field.type " + str(any_field.type) +".")
         
@@ -674,7 +695,7 @@ class AnyField(models.Model):
 
     field_group = models.ForeignKey(FieldGroup)
 
-    name = models.CharField(max_length = 30, blank=True)
+    name = models.CharField(max_length = 44, blank=True)
     title = models.CharField(max_length = 100)
     help_text = models.CharField(max_length = 300, blank=True)
     

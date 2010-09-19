@@ -2,6 +2,8 @@
 {% load events_tags %}
 {% load whiteboard_tags %}
 
+{% load var %}
+
 {% block body %}
 
 <style type="text/css"> 
@@ -47,8 +49,62 @@ $(document).ready(function()
     {% for form in formgroup %}
        <div class="bkgd header"> {{ form.groupname }} {{ form.checkbox }} </div>
        <div class="toolbarcontent" style="padding: 2px; overflow: none; border:1px solid grey;">    
+       {% comment %}
        {{ form.subform.as_p }}
+       {% endcomment %}
+       
+       <table>
+       {% var in_group = 0 %}
+       {% for field in form.subform.visible_fields %}
+            {% if field.field.is_group  %}
+                {% var in_group xor 1 %}
+                {% comment %}{{ field|safe }} {% endcomment %}
+                {% if in_group %}
+                    <tr>
+                      <td colspan="2">
+                        {{ field.label }}
+                      </td>
+                      <td>
+                      </td>
+                    </tr>      
+                {% endif %}    
+
+            {% else %}
+              
+                {% if in_group %}
+                  <tr>
+                    <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                    <td>
+                      {{ field.errors }}
+                      {{ field.label_tag }}:
+                    </td>
+                    <td>
+                      {{ field }}
+                    </td>
+                  </tr>              
+                {% else%}
+                  <tr>
+                    <td colspan="2">
+                      {{ field.errors }}
+                      {{ field.label_tag }}: 
+                    </td>
+                    <td>
+                      {{ field }}
+                    </td>
+                  </tr>
+                {% endif %}
+            
+            {% endif %}
+                
+       {% endfor %}
+       </table>
+       {% for field in form.subform.hidden_fields %}
+          {{ field }}
+       {% endfor %}
+       
        </div>
+
+
 
     {% endfor %}
     
