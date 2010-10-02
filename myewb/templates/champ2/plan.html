@@ -37,15 +37,15 @@ $(document).ready(function()
       var id = $(this).parent()[0].id;
       var remove = "assoc_div_id_";
       nid = id.substr(remove.length);
-      var div = $("#div_id_"+nid);
+      var div = $("#champ-div_id_"+nid);
       
       if( $(this)[0].checked )
       {
-        div.show();
+        div.slideDown();
       }
       else
       {
-        div.hide();
+        div.slideUp();
       }
       
       //alert("run!");
@@ -72,29 +72,21 @@ $(document).ready(function()
  <form action="." method="post">
  
  
- 
     {% for form in formgroup %}
        <div class="checkbox_div" id="assoc_div_id_{{ form.div_id }}">     
        {{ form.field.label_tag }} {{ form.field }}
        </div> 
     {% endfor %}
  
-      <br />
-      <br />
-      <br />
-      <br />
-      {% for form in formgroup %}
-       {% if form.field.field.initial %} <p> {{ form.groupname }}  </p> {% else %}  {% endif %}  
-        <p>DATA: {{ form.is_set}}</p> 
-      {% endfor %} 
+
+
  
     <div style="clear:both;">
     </div>
     <br />
  
      {% for form in formgroup %}
-        <p>is set {{ form.field.field.initial }} </p>
-       <div id="div_id_{{ form.div_id }}"  {% if form.field.field.initial %} {% else %}style="display:none;"{% endif %}>      
+       <div id="champ-div_id_{{ form.div_id }}"{% if form.is_set %}{% else %}style="display:none;"{% endif %}>      
        <div class="bkgd header toolbarheader hidebox" > {{ form.groupname }} </div>
        <div class="toolbarcontent" style="display:none; padding: 2px; overflow: none; border:1px solid grey;">    
        {% comment %}
