@@ -12,32 +12,45 @@ from django.core.exceptions import ObjectDoesNotExist
 
 class ProgramAreaCheckBoxForm(DynamicSingleCheckboxForm):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, request, *args, **kwargs):
         self.program_area = kwargs.pop('program_area')
         self.owner = kwargs.pop('owner')
         self.champ_info = kwargs.pop('champ_info') 
-        self.field_name = kwargs.pop('field_name')  #this is the name used in the template for rendering the widget
-        self.prefix = slugify(self.program_area.name)
+        self.field_label = kwargs.pop('field_label')  #this is the name used in the template for rendering the widget
+        self._prefix = slugify(self.program_area.name)
+        self._relative_post_name = "field"
+        self._full_post_name = self._prefix + "-" + self._relative_post_name
+        self._value = False      #read this value
         
-        
-        #see if it is set
-        initial = False
-        if ProgramLink.objects.filter(champ_info=self.champ_info, program_area=self.program_area).count() > 0:
-            initial = True
-        
-        prefix = self.prefix
-        super(ProgramAreaCheckBoxForm, self).__init__(post_name=self.field_name, prefix=prefix,*args, **kwargs) #call parent constructor
-        self.fields[self.field_name].initial = initial
+        super(ProgramAreaCheckBoxForm, self).__init__(request, post_name=self._relative_post_name, field_name = self.field_label, css_class="prog_area_checkbox", prefix=self._prefix,*args, **kwargs) #call parent constructor
+
+        #if no request data, fill it in ourselves
+        if request == None:
+            if ProgramLink.objects.filter(champ_info=self.champ_info, program_area=self.program_area).count() > 0:
+                self._value = True
+        else:
+            #set value from request
+            if self._full_post_name in request:
+                self._value = True 
+
+        self.fields[self._relative_post_name].initial = self._value
+
 
     def is_set(self):
-        self.is_valid()
-            
-        try:
-            print repr(self.cleaned_data)
-            return self.cleaned_data[self.field_name]      
-        except(KeyError):
-            pass
-        return False
+        return self._value
+        
+#        if self.is_valid():
+#            try:
+#                print "ISSSSSSSSSSSSSSSSSSSSSSS SET:"
+#                print repr(self.cleaned_data[self.post_name])
+#                return self.cleaned_data[self.post_name]
+#            except(KeyError):
+#                pass
+#            except(AttributeError):
+#                pass
+#
+#        print "failed..."
+#        return False
 
 #===================================================================================================================================
 # NOTE! there is some special code in here that figures out whether to pass request data to its parent constructor.

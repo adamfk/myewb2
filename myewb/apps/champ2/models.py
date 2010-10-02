@@ -32,6 +32,9 @@ class ProgramArea(models.Model):
 class ProgramLink(models.Model):
     champ_info = models.ForeignKey('ChampInfo')
     program_area = models.ForeignKey(ProgramArea)
+    
+    def __unicode__(self):
+        return str(self.champ_info) + ". pa=" + str(self.program_area)
 
 
 class ChampInfoManager(models.Manager):
@@ -62,6 +65,9 @@ class ChampInfo(models.Model):
     value_owner = models.OneToOneField(AnyValueOwner)
 
     objects = ChampInfoManager() #add a manager
+    
+    def __unicode__(self):
+        return "event:" + str(self.event) + "[id=" + str(self.event.id) + "]. value_owner: " + str(self.value_owner) + "[id=" + str(self.value_owner.id) + "]." 
 
     #====================================================================
     # shorthand for constructing with all required fields right here :) and saves it

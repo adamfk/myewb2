@@ -14,6 +14,14 @@
   font-weight: bold;
   color: white;
 }
+
+.checkbox_div
+{
+  float: left;
+  margin-right: 12px;
+  padding-bottom: 5px;
+
+}
 --> 
 </style>
 
@@ -23,11 +31,27 @@
 
 $(document).ready(function()
 { 
-  $(".header").click( function()
+  $(".prog_area_checkbox").click( function()
     {
-      $("input:checkbox", this)[0].checked = !$("input:checkbox", this)[0].checked  
-      $(this).next().slideToggle("slow");
-      $(this).toggleClass('hidebox');
+      //parse out the id of the div to toggle
+      var id = $(this).parent()[0].id;
+      var remove = "assoc_div_id_";
+      nid = id.substr(remove.length);
+      var div = $("#div_id_"+nid);
+      
+      if( $(this)[0].checked )
+      {
+        div.show();
+      }
+      else
+      {
+        div.hide();
+      }
+      
+      //alert("run!");
+        
+
+      
     }
   );
 
@@ -46,9 +70,33 @@ $(document).ready(function()
 <div id="event-details">
     
  <form action="." method="post">
+ 
+ 
+ 
     {% for form in formgroup %}
-       <div class="bkgd header"> {{ form.groupname }} {{ form.checkbox }} </div>
-       <div class="toolbarcontent" style="padding: 2px; overflow: none; border:1px solid grey;">    
+       <div class="checkbox_div" id="assoc_div_id_{{ form.div_id }}">     
+       {{ form.field.label_tag }} {{ form.field }}
+       </div> 
+    {% endfor %}
+ 
+      <br />
+      <br />
+      <br />
+      <br />
+      {% for form in formgroup %}
+       {% if form.field.field.initial %} <p> {{ form.groupname }}  </p> {% else %}  {% endif %}  
+        <p>DATA: {{ form.is_set}}</p> 
+      {% endfor %} 
+ 
+    <div style="clear:both;">
+    </div>
+    <br />
+ 
+     {% for form in formgroup %}
+        <p>is set {{ form.field.field.initial }} </p>
+       <div id="div_id_{{ form.div_id }}"  {% if form.field.field.initial %} {% else %}style="display:none;"{% endif %}>      
+       <div class="bkgd header toolbarheader hidebox" > {{ form.groupname }} </div>
+       <div class="toolbarcontent" style="display:none; padding: 2px; overflow: none; border:1px solid grey;">    
        {% comment %}
        {{ form.subform.as_p }}
        {% endcomment %}
@@ -56,6 +104,7 @@ $(document).ready(function()
        <table>
        {% var in_group = 0 %}
        {% for field in form.subform.visible_fields %}
+            
             {% if field.field.is_group  %}
                 {% var in_group xor 1 %}
                 {% comment %}{{ field|safe }} {% endcomment %}
@@ -102,6 +151,7 @@ $(document).ready(function()
           {{ field }}
        {% endfor %}
        
+       </div>
        </div>
 
 

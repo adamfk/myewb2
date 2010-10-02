@@ -88,9 +88,13 @@ class DynamicSingleCheckboxForm(forms.Form):
   
         prefix = kwargs.pop('prefix')
         post_name = kwargs.pop('post_name')
+        field_label = kwargs.pop('field_name')
+        css_class = "checkbox_class";
+        if "css_class" in kwargs:
+            css_class = kwargs.pop('css_class')
         
         super(DynamicSingleCheckboxForm, self).__init__(prefix=prefix,*args, **kwargs) #call parent constructor
-        self.fields[post_name] = forms.BooleanField( widget=forms.widgets.CheckboxInput(attrs={'class':'special_class'}))
+        self.fields[post_name] = forms.BooleanField( label=field_label, widget=forms.widgets.CheckboxInput(attrs={'class':css_class}))
         self.fields[post_name].required = False
         
 

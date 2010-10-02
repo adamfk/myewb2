@@ -92,9 +92,10 @@ def plan(request, event_id):
     for i,pa in enumerate(program_areas):
         
         #note: field name is the name used in the template for rendering the checkbox widget
-        form = ProgramAreaCheckBoxForm(request.POST or None, program_area=pa, champ_info=champ_info, owner=champ_info.value_owner, field_name="checkbox")
-       
+        form = ProgramAreaCheckBoxForm(request.POST or None, program_area=pa, champ_info=champ_info, owner=champ_info.value_owner, field_label=pa.name)
+        
         form.groupname = pa.name
+        form.div_id = str(i)
         field_group = pa.plan_model
         form.subform = FieldGroupForm(request.POST or None, field_group=field_group, owner = champ_info.value_owner)
         formgroup.add_form(form)
@@ -108,9 +109,13 @@ def plan(request, event_id):
         valid = False
         #TODO... do not trust user entered data... should verify correctness here
         
+        print " CHECK BOX SAVE CHECKING----------------------------------->>>>>>>>>>>>>"
         #loop thru formgroup and save stuff
         for form in formgroup.forms:
+
+            print "before save"
             
+            print "TOP: " + form.program_area.name
             #create or delete program link for corresponding checkbox
             q = ProgramLink.objects.filter(champ_info=champ_info, program_area=form.program_area)
             c = q.count()
