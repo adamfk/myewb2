@@ -206,21 +206,40 @@ def new_member(request, group_slug, group_model=None, form_class=None,
 @visibility_required()
 def new_email_member(request, group_slug):
     group = get_object_or_404(BaseGroup, slug=group_slug)
+    form = GroupAddEmailForm(request.POST or None)
+    show_link_not_form = False
+    messages = []
+    
+    
     if request.method == 'POST':
-        form = GroupAddEmailForm(request.POST)
+
         if form.is_valid():
             email = form.cleaned_data['email']
-            group.add_email(email)
+            message = ""
+            if(group.email_exists(email)):
+                message += (email + " <b>was already</b> a member of this mailing list and did not need to be added.")
+            else:
+                group.add_email(email)
+                message += (email + " was <b>successfully</b> added to this mailing list.")
+            messages.append(message)
+            show_link_not_form = True
 
+            form = GroupAddEmailForm() #blank the form for someone to use again
+
+            """
+            old todo commented out by AFK
             # redirect to network home page on success
             # TODO: display success message
             # request.user.message_set.create(message="Success")
             # won't work until we hit django 1.2
-            return HttpResponseRedirect(group.get_absolute_url())
-    
+            return HttpResponseRedirect(group.get_absolute_url())     
+            """
+        
     return render_to_response("base_groups/new_email_member.html",
                               {'group': group,
                                'form': form,
+                               'messages' : messages,
+                               'show_link_not_form' : show_link_not_form,
                               },
                               context_instance=RequestContext(request),
                              )

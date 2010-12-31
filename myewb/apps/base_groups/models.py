@@ -162,6 +162,16 @@ class BaseGroup(Group):
         
         self.add_member(email_user)
     
+    def email_exists(self, email):
+        """
+        checks to see if email address is already in the group
+        """
+        member = GroupMember.objects.filter(group=self, user__email=email)
+        if member.count() > 0:
+            return True
+        else:
+            return False
+    
     def remove_member(self, user):
         member = GroupMember.objects.filter(user=user, group=self)
         for m in member:
